@@ -2,7 +2,7 @@
 
 source ./config.sh
 
-RESOURCE_GROUP_NAME=rg-tfstate
+RESOURCE_GROUP_NAME=rg-tf-state
 STORAGE_ACCOUNT_NAME=aichatbot$RANDOM
 CONTAINER_NAME=tfstate
 
@@ -10,7 +10,7 @@ CONTAINER_NAME=tfstate
 az login
 
 # Switch to Visual Studio Subscription
-az account set --subscription $SUBSCRIPTION_ID
+az account set --subscription $ARM_SUBSCRIPTION_ID
 
 # Create resource group
 az group create --name $RESOURCE_GROUP_NAME --location centralus

@@ -14,7 +14,7 @@ resource "random_string" "random" {
 # Resource Group
 resource "azurerm_resource_group" "ai_rg" {
   name     = "rg-ai-chatbot-${random_string.random.result}"
-  location = "Canada Central"
+  location = "Canada East"
 }
 
 # OpenAI Cognitive Services
@@ -24,6 +24,20 @@ resource "azurerm_cognitive_account" "openai" {
   resource_group_name = azurerm_resource_group.ai_rg.name
   kind                = "OpenAI"
   sku_name            = "S0"
+}
+
+# OpenAI Cognitive Deployment
+resource "azurerm_cognitive_deployment" "openai" {
+  name                 = "openai-chatbot-deployment-${random_string.random.result}"
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+  model {
+    format  = "OpenAI"
+    name    = "gpt-4"
+  }
+
+  sku {
+    name = "Standard"
+  }
 }
 
 # App Service Plan
@@ -51,12 +65,14 @@ resource "azurerm_linux_web_app" "chatbot_api" {
 
   app_settings = {
     "OPENAI_API_KEY" = azurerm_cognitive_account.openai.primary_access_key
+    "OPENAI_ENDPOINT" = azurerm_cognitive_account.openai.endpoint
+    "OPENAI_DEPLOYMENT_NAME" = azurerm_cognitive_deployment.openai.name
   }
 }
 
 # Azure Load Testing
 resource "azurerm_load_test" "chatbot_loadtest" {
   name                = "ai-chatbot-loadtest-${random_string.random.result}"
-  location            = azurerm_resource_group.ai_rg.location
+  location            = "canadacentral"
   resource_group_name = azurerm_resource_group.ai_rg.name
 }

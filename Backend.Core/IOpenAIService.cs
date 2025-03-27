@@ -1,7 +1,9 @@
-﻿namespace Backend.Core
+﻿using Backend.Core.Models;
+
+namespace Backend.Core
 {
     public interface IOpenAIService
     {
-        Task<string> GetChatResponseAsync(string message);
+        Task<ChatMessage> GetChatResponseAsync(IEnumerable<ChatMessage> messages);
     }
 }

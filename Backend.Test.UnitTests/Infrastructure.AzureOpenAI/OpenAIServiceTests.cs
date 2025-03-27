@@ -21,24 +21,35 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
         public async Task GetChatResponseAsync_ReturnsExpectedResponse()
         {
             // Arrange
-            var expectedResponse = "Hello, how can I help you?";
+            var expectedResponse = new Backend.Core.Models.ChatMessage
+            {
+                Role = ChatMessageRole.System.ToString(),
+                Content = "Hello, how can I help you?"
+            };
             var completion = OpenAIChatModelFactory.ChatCompletion(
-                role: ChatMessageRole.User,
-                content: new ChatMessageContent(ChatMessageContentPart.CreateTextPart(expectedResponse)));
+                role: ChatMessageRole.System,
+                content: new ChatMessageContent(expectedResponse.Content));
 
             var mockPipelineResponse = new Mock<PipelineResponse>();
             var completionResponse = ClientResult.FromValue(completion, mockPipelineResponse.Object);
 
-
-            _mockChatClient.Setup(client => client.CompleteChatAsync(It.IsAny<ChatMessage[]>()))
+            _mockChatClient.Setup(client => client.CompleteChatAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
                 .ReturnsAsync(completionResponse);
 
+            var chatMessages = new List<Backend.Core.Models.ChatMessage>
+            {
+                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
+                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+            };
 
             // Act
-            var result = await _openAIService.GetChatResponseAsync("Hello");
+            var result = await _openAIService.GetChatResponseAsync(chatMessages);
 
             // Assert
-            Assert.Equal(expectedResponse, result);
+            Assert.Equal(expectedResponse.Role, result.Role);
+            Assert.Equal(expectedResponse.Content, result.Content);
         }
     }
 }

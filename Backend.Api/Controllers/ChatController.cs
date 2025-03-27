@@ -1,5 +1,6 @@
 ﻿using Backend.Core;
 using Backend.Core.DTOs;
+using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,8 +19,10 @@ namespace Backend.Api.Controllers
             if (string.IsNullOrWhiteSpace(request.Message))
                 return BadRequest("Message cannot be empty.");
 
-            var response = await _openAiService.GetChatResponseAsync(request.Message);
-            return Ok(new ChatResponse { Response = response });
+            var response = await _openAiService.GetChatResponseAsync([
+                new ChatMessage { Role = "user", Content = request.Message}
+            ]);
+            return Ok(new ChatResponse { Response = response.Content });
         }
     }
 }

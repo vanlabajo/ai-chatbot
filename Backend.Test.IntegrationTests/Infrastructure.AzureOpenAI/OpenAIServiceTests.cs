@@ -2,6 +2,7 @@
 using Azure.AI.OpenAI;
 using Backend.Infrastructure.AzureOpenAI;
 using Microsoft.Extensions.Configuration;
+using OpenAI.Chat;
 
 namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
 {
@@ -21,7 +22,6 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
         public async Task GetChatResponseAsync_ReturnsExpectedResponse()
         {
             // Arrange
-
             var configSection = _configuration.GetSection(AzureOpenAIOptions.AzureOpenAI);
             var options = new AzureOpenAIOptions
             {
@@ -35,9 +35,12 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
 
             var openAIService = new OpenAIService(chatClient);
             // Act
-            var result = await openAIService.GetChatResponseAsync("Hello");
+            var result = await openAIService.GetChatResponseAsync([
+                new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }
+            ]);
             // Assert
-            Assert.NotEqual(string.Empty, result);
+            Assert.NotNull(result);
+            Assert.NotEqual(string.Empty, result.Content);
         }
     }
 }

@@ -8,7 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="9.0.3" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.3" />
+    <PackageReference Include="Tiktoken" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>

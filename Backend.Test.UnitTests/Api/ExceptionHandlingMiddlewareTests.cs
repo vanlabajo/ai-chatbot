@@ -1,5 +1,5 @@
 ﻿using Backend.Api;
-using Backend.Test.UnitTests.Core;
+using Backend.Core.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -42,7 +42,7 @@ namespace Backend.Test.UnitTests.Api
             context.Response.Body = new MemoryStream();
             var next = new RequestDelegate((innerContext) =>
             {
-                throw new TestBadRequestException("Test Exception");
+                throw new BadRequestException("Test Exception");
             });
             // Act
             await middleware.InvokeAsync(context, next);
@@ -65,7 +65,7 @@ namespace Backend.Test.UnitTests.Api
             context.Response.Body = new MemoryStream();
             var next = new RequestDelegate((innerContext) =>
             {
-                throw new TestNotFoundException("Test Exception");
+                throw new NotFoundException("Test Exception");
             });
             // Act
             await middleware.InvokeAsync(context, next);

@@ -1,8 +1,10 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
 using Backend.Infrastructure.AzureOpenAI;
+using Backend.Infrastructure.Tiktoken;
 using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
+using Tiktoken;
 
 namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
 {
@@ -33,7 +35,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             var azureClient = new AzureOpenAIClient(new Uri(options.Endpoint), new AzureKeyCredential(options.ApiKey));
             var chatClient = azureClient.GetChatClient(options.DeploymentName);
 
-            var openAIService = new OpenAIService(chatClient);
+            var openAIService = new OpenAIService(chatClient, new TokenizerService(ModelToEncoder.For("gpt-4")));
             // Act
             var result = await openAIService.GetChatResponseAsync([
                 new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }

@@ -1,4 +1,6 @@
-﻿namespace Backend.Test.UnitTests.Core
+﻿using Backend.Core.Exceptions;
+
+namespace Backend.Test.UnitTests.Core
 {
     public class BadRequestExceptionTests
     {
@@ -9,7 +11,7 @@
             var expectedMessage = "Test message";
 
             // Act
-            var exception = new TestBadRequestException(expectedMessage);
+            var exception = new BadRequestException(expectedMessage);
 
             // Assert
             Assert.Equal(expectedMessage, exception.Message);

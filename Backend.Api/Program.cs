@@ -2,11 +2,14 @@ using Azure;
 using Azure.AI.OpenAI;
 using Backend.Api;
 using Backend.Core;
+using Backend.Infrastructure;
 using Backend.Infrastructure.AzureOpenAI;
+using Backend.Infrastructure.Tiktoken;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
+using Tiktoken;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,9 +19,13 @@ builder.Services
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
 builder.Services
+    .AddMemoryCache()
     .Configure<AzureOpenAIOptions>(builder.Configuration.GetSection(AzureOpenAIOptions.AzureOpenAI))
+    .AddScoped<ICacheService, InMemoryCacheService>()
     .AddScoped<IOpenAIService, OpenAIService>()
+    .AddScoped<ITokenizerService, TokenizerService>()
     .AddTransient<ExceptionHandlingMiddleware>()
+    .AddSingleton(ModelToEncoder.For("gpt-4"))
     .AddApplicationInsightsTelemetry(options =>
     {
         options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];

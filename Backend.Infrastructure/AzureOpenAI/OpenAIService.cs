@@ -14,6 +14,43 @@ namespace Backend.Infrastructure.AzureOpenAI
 
         public async Task<Core.Models.ChatMessage> GetChatResponseAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
+            var chatMessages = PrepareChatMessages(messages);
+            var response = await GetChatResponseAsync(chatMessages);
+            return new Core.Models.ChatMessage
+            {
+                Role = response.Role,
+                Content = response.Content
+            };
+        }
+
+        public async IAsyncEnumerable<Core.Models.ChatMessage> GetChatResponseStreamingAsync(IEnumerable<Core.Models.ChatMessage> messages)
+        {
+            var chatMessages = PrepareChatMessages(messages);
+            var completionUpdates = _chatClient.CompleteChatStreamingAsync(chatMessages) ?? throw new NotFoundException("Chat response not found.");
+            await foreach (var completionUpdate in completionUpdates)
+            {
+                if (completionUpdate == null || completionUpdate.ContentUpdate == null)
+                {
+                    throw new NotFoundException("Chat response not found.");
+                }
+                if (completionUpdate.ContentUpdate.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var contentPart in completionUpdate.ContentUpdate)
+                {
+                    yield return new Core.Models.ChatMessage
+                    {
+                        Role = completionUpdate.Role.ToString() ?? "assistant",
+                        Content = contentPart.Text
+                    };
+                }
+            }
+        }
+
+        private List<ChatMessage> PrepareChatMessages(IEnumerable<Core.Models.ChatMessage> messages)
+        {
             var chatMessages = new List<ChatMessage>();
             int totalTokens = 0;
 
@@ -23,7 +60,7 @@ namespace Backend.Infrastructure.AzureOpenAI
                 if (totalTokens + tokenCount > MaxTokens)
                 {
                     // Summarize older messages to fit within the token limit
-                    var summarizedMessages = await SummarizeMessagesInPortions(messages);
+                    var summarizedMessages = SummarizeMessagesInPortions(messages).Result;
                     chatMessages.AddRange(summarizedMessages);
                     break;
                 }
@@ -32,12 +69,7 @@ namespace Backend.Infrastructure.AzureOpenAI
                 totalTokens += tokenCount;
             }
 
-            var response = await GetChatResponseAsync(chatMessages);
-            return new Core.Models.ChatMessage
-            {
-                Role = response.Role,
-                Content = response.Content
-            };
+            return chatMessages;
         }
 
         private static void AddChatMessage(List<ChatMessage> chatMessages, Core.Models.ChatMessage message)
@@ -123,4 +155,3 @@ namespace Backend.Infrastructure.AzureOpenAI
         }
     }
 }
-

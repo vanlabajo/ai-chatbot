@@ -268,5 +268,160 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             Assert.Equal(ChatMessageRole.System.ToString(), result.Role);
             Assert.Equal("Get a professional trainer...", result.Content);
         }
+
+        [Fact]
+        public async Task GetChatResponseStreamingAsync_ReturnsExpectedResponse()
+        {
+            // Arrange
+            var expectedResponse = new Backend.Core.Models.ChatMessage
+            {
+                Role = ChatMessageRole.System.ToString(),
+                Content = "Hello, how can I help you?"
+            };
+
+            _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
+                .Returns(new AsyncStreamingChatCompletionUpdateCollection([expectedResponse.Content]));
+            var chatMessages = new List<Backend.Core.Models.ChatMessage>
+            {
+                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
+                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+            };
+            // Act
+            var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
+            // Assert
+            await foreach (var message in result)
+            {
+                Assert.Equal(expectedResponse.Role, message.Role);
+                Assert.Equal(expectedResponse.Content, message.Content);
+            }
+        }
+
+        [Fact]
+        public async Task GetChatResponseStreamingAsync_WithCompletionUpdatesIsNull_ThrowsNotFoundException()
+        {
+            // Arrange
+            var chatMessages = new List<Backend.Core.Models.ChatMessage>
+            {
+                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
+                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+            };
+            // Act
+            var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
+            {
+                await foreach (var _ in _openAIService.GetChatResponseStreamingAsync(chatMessages))
+                {
+                    // Force enumeration to trigger the exception
+                }
+            });
+            // Assert
+            Assert.Equal("Chat response not found.", exception.Message);
+        }
+
+        [Fact]
+        public async Task GetChatResponseStreamingAsync_WithcompletionUpdateIsNull_ThrowsNotFoundException()
+        {
+            // Arrange
+            _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
+                .Returns(new AsyncStreamingChatCompletionUpdateCollection([]));
+            var chatMessages = new List<Backend.Core.Models.ChatMessage>
+            {
+                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
+                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+            };
+            // Act
+            var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
+            {
+                await foreach (var _ in _openAIService.GetChatResponseStreamingAsync(chatMessages))
+                {
+                    // Force enumeration to trigger the exception
+                }
+            });
+            // Assert
+            Assert.Equal("Chat response not found.", exception.Message);
+        }
+
+        [Fact]
+        public async Task GetChatResponseStreamingAsync_SkipsWhenContentUpdateIsEmpty()
+        {
+            // Arrange
+            var chatMessages = new List<Backend.Core.Models.ChatMessage>
+            {
+                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
+                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+            };
+
+            var completionUpdate = OpenAIChatModelFactory.StreamingChatCompletionUpdate(
+                role: ChatMessageRole.System,
+                contentUpdate: new ChatMessageContent([])
+            );
+
+            var mockPipelineResponse = new Mock<PipelineResponse>();
+            var completionResponse = ClientResult.FromValue(completionUpdate, mockPipelineResponse.Object);
+
+            _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
+                .Returns(new AsyncStreamingChatCompletionUpdateCollection([""]));
+
+            // Act
+            var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
+
+            // Assert
+            var messages = new List<Backend.Core.Models.ChatMessage>();
+            await foreach (var message in result)
+            {
+                messages.Add(message);
+            }
+
+            // Verify that no messages were yielded
+            Assert.Empty(messages);
+        }
+
+        private class AsyncStreamingChatCompletionUpdateCollection(List<string> responses) : AsyncCollectionResult<StreamingChatCompletionUpdate>
+        {
+            private readonly IEnumerable<string> _responses = responses;
+
+            public override ContinuationToken? GetContinuationToken(ClientResult page)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override async IAsyncEnumerable<ClientResult> GetRawPagesAsync()
+            {
+                var mockPipelineResponse = new Mock<PipelineResponse>();
+
+                if (!_responses.Any())
+                {
+                    yield return ClientResult.FromOptionalValue<StreamingChatCompletionUpdate?>(null, mockPipelineResponse.Object);
+                }
+
+                foreach (var response in _responses)
+                {
+                    var completionUpdate = OpenAIChatModelFactory.StreamingChatCompletionUpdate(
+                            role: ChatMessageRole.System,
+                            contentUpdate: new ChatMessageContent(response));
+
+                    if (response.Equals(""))
+                        completionUpdate = OpenAIChatModelFactory.StreamingChatCompletionUpdate(
+                            role: ChatMessageRole.System,
+                            contentUpdate: new ChatMessageContent([]));
+
+                    yield return await Task.FromResult(ClientResult.FromValue(completionUpdate, mockPipelineResponse.Object));
+                }
+            }
+
+            protected override async IAsyncEnumerable<StreamingChatCompletionUpdate> GetValuesFromPageAsync(ClientResult page)
+            {
+                var streamingUpdate = ((ClientResult<StreamingChatCompletionUpdate>)page).Value;
+                await Task.Delay(2 * 1000);
+                yield return streamingUpdate;
+            }
+        }
     }
 }

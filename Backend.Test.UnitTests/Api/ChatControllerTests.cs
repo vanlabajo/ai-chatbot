@@ -31,7 +31,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync(new ChatMessage { Role = "system", Content = "Hello, World!" });
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                     new Claim(ClaimTypes.NameIdentifier, "testuser"),
@@ -80,7 +80,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync(new ChatMessage { Role = "system", Content = "Hello, World!" });
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                     new Claim(ClaimTypes.NameIdentifier, "testuser"),
@@ -109,7 +109,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync(new ChatMessage { Role = "system", Content = "Hello, World!" });
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             new List<Claim>
             {
@@ -139,7 +139,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync(new ChatMessage { Role = "system", Content = "Hello, World!" });
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),

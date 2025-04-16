@@ -42,7 +42,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             ]);
             // Assert
             Assert.NotNull(result);
-            Assert.NotEqual(string.Empty, result.Content);
+            Assert.NotEqual(string.Empty, result);
         }
     }
 }

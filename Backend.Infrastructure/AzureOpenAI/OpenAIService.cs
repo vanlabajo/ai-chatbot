@@ -12,18 +12,13 @@ namespace Backend.Infrastructure.AzureOpenAI
         private const int MaxTokens = 8000; // Example token limit for GPT-4
         private const int PortionSize = 30; // Number of messages per portion
 
-        public async Task<Core.Models.ChatMessage> GetChatResponseAsync(IEnumerable<Core.Models.ChatMessage> messages)
+        public async Task<string> GetChatResponseAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
             var chatMessages = PrepareChatMessages(messages);
-            var response = await GetChatResponseAsync(chatMessages);
-            return new Core.Models.ChatMessage
-            {
-                Role = response.Role,
-                Content = response.Content
-            };
+            return await GetChatResponseAsync(chatMessages);
         }
 
-        public async IAsyncEnumerable<Core.Models.ChatMessage> GetChatResponseStreamingAsync(IEnumerable<Core.Models.ChatMessage> messages)
+        public async IAsyncEnumerable<string> GetChatResponseStreamingAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
             var chatMessages = PrepareChatMessages(messages);
             var completionUpdates = _chatClient.CompleteChatStreamingAsync(chatMessages) ?? throw new NotFoundException("Chat response not found.");
@@ -40,11 +35,7 @@ namespace Backend.Infrastructure.AzureOpenAI
 
                 foreach (var contentPart in completionUpdate.ContentUpdate)
                 {
-                    yield return new Core.Models.ChatMessage
-                    {
-                        Role = completionUpdate.Role.ToString() ?? "assistant",
-                        Content = contentPart.Text
-                    };
+                    yield return contentPart.Text;
                 }
             }
         }
@@ -88,7 +79,7 @@ namespace Backend.Infrastructure.AzureOpenAI
             }
         }
 
-        private async Task<Core.Models.ChatMessage> GetChatResponseAsync(List<ChatMessage> chatMessages)
+        private async Task<string> GetChatResponseAsync(List<ChatMessage> chatMessages)
         {
             try
             {
@@ -98,11 +89,7 @@ namespace Backend.Infrastructure.AzureOpenAI
                     throw new NotFoundException("Chat response not found.");
                 }
 
-                return new Core.Models.ChatMessage
-                {
-                    Role = response.Value.Role.ToString(),
-                    Content = response.Value.Content.Count > 0 ? response.Value.Content[0].Text : string.Empty
-                };
+                return response.Value.Content.Count > 0 ? response.Value.Content[0].Text : string.Empty;
             }
             catch (RequestFailedException ex) when (ex.Status == 400)
             {

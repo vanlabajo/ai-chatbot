@@ -26,14 +26,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
         public async Task GetChatResponseAsync_ReturnsExpectedResponse()
         {
             // Arrange
-            var expectedResponse = new Backend.Core.Models.ChatMessage
-            {
-                Role = ChatMessageRole.System.ToString(),
-                Content = "Hello, how can I help you?"
-            };
+            var expectedResponse = "Hello, how can I help you?";
             var completion = OpenAIChatModelFactory.ChatCompletion(
                 role: ChatMessageRole.System,
-                content: new ChatMessageContent(expectedResponse.Content));
+                content: new ChatMessageContent(expectedResponse));
 
             var mockPipelineResponse = new Mock<PipelineResponse>();
             var completionResponse = ClientResult.FromValue(completion, mockPipelineResponse.Object);
@@ -53,8 +49,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             var result = await _openAIService.GetChatResponseAsync(chatMessages);
 
             // Assert
-            Assert.Equal(expectedResponse.Role, result.Role);
-            Assert.Equal(expectedResponse.Content, result.Content);
+            Assert.Equal(expectedResponse, result);
         }
 
         [Fact]
@@ -227,8 +222,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             // Act
             var result = await _openAIService.GetChatResponseAsync(chatMessages);
             // Assert
-            Assert.Equal(ChatMessageRole.System.ToString(), result.Role);
-            Assert.Equal(string.Empty, result.Content);
+            Assert.Equal(string.Empty, result);
         }
 
         [Fact]
@@ -265,22 +259,17 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             var result = await _openAIService.GetChatResponseAsync(chatMessages);
 
             // Assert
-            Assert.Equal(ChatMessageRole.System.ToString(), result.Role);
-            Assert.Equal("Get a professional trainer...", result.Content);
+            Assert.Equal("Get a professional trainer...", result);
         }
 
         [Fact]
         public async Task GetChatResponseStreamingAsync_ReturnsExpectedResponse()
         {
             // Arrange
-            var expectedResponse = new Backend.Core.Models.ChatMessage
-            {
-                Role = ChatMessageRole.System.ToString(),
-                Content = "Hello, how can I help you?"
-            };
+            var expectedResponse = "Hello, how can I help you?";
 
             _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
-                .Returns(new AsyncStreamingChatCompletionUpdateCollection([expectedResponse.Content]));
+                .Returns(new AsyncStreamingChatCompletionUpdateCollection([expectedResponse]));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
                 new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
@@ -293,8 +282,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             // Assert
             await foreach (var message in result)
             {
-                Assert.Equal(expectedResponse.Role, message.Role);
-                Assert.Equal(expectedResponse.Content, message.Content);
+                Assert.Equal(expectedResponse, message);
             }
         }
 
@@ -373,7 +361,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
 
             // Assert
-            var messages = new List<Backend.Core.Models.ChatMessage>();
+            var messages = new List<string>();
             await foreach (var message in result)
             {
                 messages.Add(message);

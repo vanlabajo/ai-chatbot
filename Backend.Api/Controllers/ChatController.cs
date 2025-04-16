@@ -1,9 +1,12 @@
 ﻿using Backend.Core;
 using Backend.Core.DTOs;
+using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Backend.Api.Controllers
 {
@@ -38,10 +41,41 @@ namespace Backend.Api.Controllers
 
             var response = await _openAiService.GetChatResponseAsync(conversations);
 
-            conversations.Add(response);
+            conversations.Add(new ChatMessage { Role = "assistant", Content = response });
             await _cacheService.SetAsync($"conversations-{user}", conversations, cancellationToken: cancellationToken);
 
-            return Ok(new ChatResponse { Response = response.Content });
+            return Ok(new ChatResponse { Response = response });
+        }
+
+        [HttpPost("stream")]
+        [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async IAsyncEnumerable<string> StreamChat([FromBody] ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.Message))
+                throw new BadRequestException("Message cannot be empty.");
+
+            var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
+
+            var conversations = await _cacheService.GetAsync<List<ChatMessage>>($"conversations-{user}", cancellationToken);
+            if (conversations == null || conversations.Count == 0)
+            {
+                conversations = [];
+            }
+
+            Response.Headers.Append("Content-Type", "text/event-stream");
+
+            conversations.Add(new ChatMessage { Role = "user", Content = request.Message });
+
+            var chatResponseBuilder = new StringBuilder();
+            await foreach (var response in _openAiService.GetChatResponseStreamingAsync(conversations))
+            {
+                chatResponseBuilder.Append(response);
+                yield return response;
+            }
+
+            conversations.Add(new ChatMessage { Role = "assistant", Content = chatResponseBuilder.ToString() });
         }
     }
 }

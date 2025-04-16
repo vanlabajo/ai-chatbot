@@ -39,5 +39,31 @@ namespace Backend.Test.IntegrationTests.Api
             var responseObj = JsonSerializer.Deserialize<ChatResponse>(responseString, _jsonOptions);
             Assert.NotEqual(string.Empty, responseObj!.Response);
         }
+
+        [Fact]
+        public async Task StreamChat_ReturnsOk_WhenMessageIsNotNullOrWhitespace()
+        {
+            // Arrange
+            var request = new ChatRequest { Message = "Hello" };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            // Act
+            var response = await _client.PostAsync("/api/chat/stream", content);
+            // Assert
+            response.EnsureSuccessStatusCode();
+            var responseString = await response.Content.ReadAsStringAsync();
+            Assert.NotEqual(string.Empty, responseString);
+        }
+
+        [Fact]
+        public async Task StreamChat_ReturnsBadRequest_WhenMessageIsNullOrWhitespace()
+        {
+            // Arrange
+            var request = new ChatRequest { Message = null };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            // Act
+            var response = await _client.PostAsync("/api/chat/stream", content);
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
     }
 }

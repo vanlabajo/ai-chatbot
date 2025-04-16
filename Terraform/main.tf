@@ -32,7 +32,7 @@ resource "azurerm_cognitive_deployment" "openai" {
   cognitive_account_id = azurerm_cognitive_account.openai.id
   model {
     format  = "OpenAI"
-    name    = "gpt-4o"
+    name    = "gpt-4"
   }
 
   sku {

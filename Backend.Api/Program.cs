@@ -71,6 +71,17 @@ builder.Services.AddSwaggerGen(opt =>
         }
     });
 });
+builder.Services.AddCors(options =>
+{
+    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.WithOrigins(allowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        });
+});
 
 var app = builder.Build();
 

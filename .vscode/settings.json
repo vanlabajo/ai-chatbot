@@ -1,0 +1,19 @@
+{
+  "tailwindCSS.experimental.classRegex": [
+    [
+      "clsx\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ],
+    [
+      "cx\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ]
+  ],
+  "editor.detectIndentation": false, // Disable automatic indentation detection
+  "editor.tabSize": 2, // Set default tab size to 2 spaces
+  "editor.insertSpaces": true, // Use spaces instead of tabs
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  }
+}

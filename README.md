@@ -12,14 +12,12 @@ Follow these steps to set up and run the project:
 1. **Navigate to the Terraform Directory**:
   ```bash
   cd Terraform
-
 2. **Initialize Terraform**:
   ```
   terraform init
-
 3. **Apply the Terraform Configuration**:
   ```
   terraform apply
 
-  - Review the plan and type yes to confirm.
-  - This will create the necessary Azure resources, including the Cognitive Services account and App Service.
+- Review the plan and type yes to confirm.
+- This will create the necessary Azure resources, including the Cognitive Services account and App Service.

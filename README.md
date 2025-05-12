@@ -64,3 +64,13 @@ Follow these steps to set up and run the project:
 4. **Access the Chatbot**
    * Open your browser and navigate to the frontend URL (e.g., http://localhost:3000).
    * Interact with the chatbot, which communicates with the backend API and Azure OpenAI for responses.
+
+### Additional Notes
+  * Ensure you have the following tools installed:
+    - [Terraform](https://developer.hashicorp.com/terraform)
+    - [.NET SDK](https://dotnet.microsoft.com/en-us/download)
+    - [pnpm](https://pnpm.io/installation)
+  * Azure resources created by Terraform may incur costs. Remember to destroy the resources when no longer needed:
+    ```bash
+    terraform destroy
+    ```

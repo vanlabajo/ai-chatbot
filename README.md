@@ -44,3 +44,23 @@ Follow these steps to set up and run the project:
    ```
    * The API will start on [https://localhost:7256](https://localhost:7256/) (or another port if configured)..
    * Swagger UI is on [https://localhost:7256/swagger](https://localhost:7256/swagger).
+
+### 3. Prepare and Start the Frontend
+
+1. **Navigate to the Frontend Directory**:
+  ```bash
+  frontend.web
+  ```
+2. **Install Dependencies**:
+   ```bash
+   pnpm install
+   ```
+3. **Start the Development Server**:
+   ```bash
+   pnpm run dev
+   ```
+   * The frontend will start on http://localhost:3000 (or another port if configured).
+
+4. **Access the Chatbot**
+   * Open your browser and navigate to the frontend URL (e.g., http://localhost:3000).
+   * Interact with the chatbot, which communicates with the backend API and Azure OpenAI for responses.

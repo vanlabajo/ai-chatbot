@@ -70,7 +70,19 @@ Follow these steps to set up and run the project:
     - [Terraform](https://developer.hashicorp.com/terraform)
     - [.NET SDK](https://dotnet.microsoft.com/en-us/download)
     - [pnpm](https://pnpm.io/installation)
+    - [Node.js](https://nodejs.org) (specifically v24)
   * Azure resources created by Terraform may incur costs. Remember to destroy the resources when no longer needed:
     ```bash
     terraform destroy
     ```
+  * The Frontend project:
+    - This project is modified from the [Tremor Dashboard](https://tremor.so) template and is licensed under the [Tremor License](https://blocks.tremor.so/license).
+    - [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+    - [`Tremor Raw`](https://raw.tremor.so/docs/getting-started/installation) components for the UI.
+    - For a deeper understanding of the technologies used in this project, refer to:
+      - [Tremor Raw](https://raw.tremor.so) - Tremor Raw documentation.
+      - [Tailwind CSS](https://tailwindcss.com) - A utility-first CSS framework.
+      - [Next.js](https://nextjs.org/docs) - Next.js documentation.
+      - [Radix UI](https://www.radix-ui.com) - Radix UI Website.
+      - [Recharts](https://recharts.org) - Recharts documentation and website.
+      - [TanStack Table](https://tanstack.com/table/latest) - TanStack table documentation.

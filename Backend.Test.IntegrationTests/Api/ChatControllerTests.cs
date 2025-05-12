@@ -1,5 +1,6 @@
 ﻿using Backend.Core.DTOs;
 using System.Net;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 
@@ -41,29 +42,37 @@ namespace Backend.Test.IntegrationTests.Api
         }
 
         [Fact]
-        public async Task StreamChat_ReturnsOk_WhenMessageIsNotNullOrWhitespace()
+        public async Task HandleWebSocket_ReturnsBadRequest_WhenNotWebSocketRequest()
         {
-            // Arrange
-            var request = new ChatRequest { Message = "Hello" };
-            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
             // Act
-            var response = await _client.PostAsync("/api/chat/stream", content);
+            var response = await _client.GetAsync("/api/chat/ws");
             // Assert
-            response.EnsureSuccessStatusCode();
-            var responseString = await response.Content.ReadAsStringAsync();
-            Assert.NotEqual(string.Empty, responseString);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
 
         [Fact]
-        public async Task StreamChat_ReturnsBadRequest_WhenMessageIsNullOrWhitespace()
+        public async Task HandleWebSocket_ReturnsOk_WhenWebSocketRequest()
         {
             // Arrange
-            var request = new ChatRequest { Message = null };
-            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            var client = factory.Server.CreateWebSocketClient();
+            using var webSocket = await client.ConnectAsync(new Uri("ws://localhost/api/chat/ws"), CancellationToken.None);
             // Act
-            var response = await _client.PostAsync("/api/chat/stream", content);
+            var message = Encoding.UTF8.GetBytes("Hello");
+            await webSocket.SendAsync(new ArraySegment<byte>(message), WebSocketMessageType.Text, true, CancellationToken.None);
+            var buffer = new byte[1024];
+            var accumulatedMessage = new StringBuilder();
+            while (!webSocket.CloseStatus.HasValue)
+            {
+                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                var response = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                accumulatedMessage.AppendLine(response);
+                if (response.Equals("[END]"))
+                {
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                }
+            }
             // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.False(string.IsNullOrEmpty(accumulatedMessage.ToString()));
         }
     }
 }

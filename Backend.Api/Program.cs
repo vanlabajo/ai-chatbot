@@ -18,6 +18,11 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
+// This is required to support multiple audiences e.g. for Swagger UI and the API
+builder.Services.Configure<JwtBearerOptions>(
+      JwtBearerDefaults.AuthenticationScheme,
+      options => options.TokenValidationParameters.ValidAudiences = builder.Configuration.GetSection("AzureAd:Audiences").Get<string[]>());
+
 builder.Services
     .AddMemoryCache()
     .Configure<AzureOpenAIOptions>(builder.Configuration.GetSection(AzureOpenAIOptions.AzureOpenAI))
@@ -71,10 +76,11 @@ builder.Services.AddSwaggerGen(opt =>
         }
     });
 });
+
 builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [];
-    options.AddPolicy("AllowAll",
+    options.AddPolicy("AllowSpecificOrigins",
         builder =>
         {
             builder.WithOrigins(allowedOrigins)
@@ -99,16 +105,23 @@ if (!app.Environment.IsProduction())
         opt.OAuthUsePkce();
         opt.OAuthAdditionalQueryStringParams(new Dictionary<string, string>()
             {
-                { "resource", builder.Configuration["AzureAd:ClientId"]!}
+                { "resource", builder.Configuration["SwaggerUI:ClientId"]!}
             });
     });
 }
+
+app.UseWebSockets();
+app.UseMiddleware<WebSocketAuthenticationMiddleware>();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+
 app.UseAuthorization();
+
+app.UseCors("AllowSpecificOrigins");
 
 app.MapControllers();
 

@@ -4,7 +4,7 @@ An AI-powered chat assistant integrated with a .NET backend and a React frontend
 ## Overview
 The AI Chatbot is a modern conversational assistant powered by Azure OpenAI for natural language processing. It features a .NET backend and a React/Next.js frontend, offering real-time chat, and secure authentication. Designed for scalability, it is ideal for integrating conversational AI into applications or workflows.
 
-![Demo](demo.png)
+![Demo](Frontend.Web/demo.png)
 
 ## Getting Started
 

@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
 using Backend.Infrastructure.AzureOpenAI;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -40,6 +41,62 @@ namespace Backend.Test.UnitTests.Api
 
             // Assert
             Assert.NotNull(chatClient);
+        }
+
+        [Fact]
+        public void CorsPolicy_IsConfiguredCorrectly()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    { "AllowedOrigins:0", "https://example.com" },
+                    { "AllowedOrigins:1", "https://another-example.com" }
+                })
+                .Build();
+            services.AddCors(options =>
+            {
+                var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                options.AddPolicy("AllowSpecificOrigins",
+                    builder =>
+                    {
+                        builder.WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
+                    });
+            });
+            var serviceProvider = services.BuildServiceProvider();
+            // Act
+            var corsPolicy = serviceProvider.GetService<ICorsPolicyProvider>();
+            // Assert
+            Assert.NotNull(corsPolicy);
+        }
+
+        [Fact]
+        public void CorsPolicy_EmptyOrigins_DoesNotThrow()
+        {
+            // Arrange
+            var services = new ServiceCollection();
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>())
+                .Build();
+            services.AddCors(options =>
+            {
+                var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                options.AddPolicy("AllowSpecificOrigins",
+                    builder =>
+                    {
+                        builder.WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader();
+                    });
+            });
+            var serviceProvider = services.BuildServiceProvider();
+            // Act
+            var corsPolicy = serviceProvider.GetService<ICorsPolicyProvider>();
+            // Assert
+            Assert.NotNull(corsPolicy);
         }
     }
 }

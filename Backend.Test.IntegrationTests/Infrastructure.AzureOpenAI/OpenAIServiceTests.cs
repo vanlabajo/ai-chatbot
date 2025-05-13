@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using Backend.Core.Models;
 using Backend.Infrastructure.AzureOpenAI;
 using Backend.Infrastructure.Tiktoken;
 using Microsoft.Extensions.Configuration;
@@ -39,7 +40,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             var openAIService = new OpenAIService(chatClient, new TokenizerService(ModelToEncoder.For("gpt-4")));
             // Act
             var result = await openAIService.GetChatResponseAsync([
-                new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }
+                new Core.Models.ChatMessage { Role = ChatRole.User, Content = "Hello" }
             ]);
             // Assert
             Assert.NotNull(result);
@@ -62,7 +63,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             var openAIService = new OpenAIService(chatClient, new TokenizerService(ModelToEncoder.For("gpt-4")));
             // Act
             var result = openAIService.GetChatResponseStreamingAsync([
-                new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }
+                new Core.Models.ChatMessage { Role = ChatRole.User, Content = "Hello" }
             ]);
             // Assert
             var responseBuilder = new StringBuilder();

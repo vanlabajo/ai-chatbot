@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,7 +23,7 @@ namespace Backend.Test.IntegrationTests.Api
                       .AddUserSecrets<CustomWebApplicationFactory>();
             });
 
-            builder.ConfigureServices(services =>
+            builder.ConfigureTestServices(services =>
             {
 
                 services.AddAuthentication(options =>

@@ -39,10 +39,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
 
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
 
             // Act
@@ -74,10 +74,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
 
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
 
             _mockTokenizerService.Setup(service => service.CountTokens(It.IsAny<string>()))
@@ -100,10 +100,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ReturnsAsync(completionResponse);
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(() => _openAIService.GetChatResponseAsync(chatMessages));
@@ -124,10 +124,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ThrowsAsync(new RequestFailedException(400, "Request failed."));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<BadRequestException>(() => _openAIService.GetChatResponseAsync(chatMessages));
@@ -148,10 +148,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ThrowsAsync(new RequestFailedException(404, "Request failed."));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(() => _openAIService.GetChatResponseAsync(chatMessages));
@@ -172,10 +172,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ThrowsAsync(new RequestFailedException("Request failed."));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<Exception>(() => _openAIService.GetChatResponseAsync(chatMessages));
@@ -191,10 +191,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ReturnsAsync((ClientResult<ChatCompletion>?)null);
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(() => _openAIService.GetChatResponseAsync(chatMessages));
@@ -214,10 +214,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .ReturnsAsync(completionResponse);
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var result = await _openAIService.GetChatResponseAsync(chatMessages);
@@ -246,10 +246,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
 
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
 
             _mockTokenizerService.Setup(service => service.CountTokens(It.IsAny<string>()))
@@ -272,10 +272,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .Returns(new AsyncStreamingChatCompletionUpdateCollection([expectedResponse]));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
@@ -292,10 +292,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             // Arrange
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
@@ -317,10 +317,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
                 .Returns(new AsyncStreamingChatCompletionUpdateCollection([]));
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
@@ -340,10 +340,10 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             // Arrange
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
             {
-                new() { Role = ChatMessageRole.System.ToString(), Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "Hi, can you help me?" },
-                new() { Role = ChatMessageRole.Assistant.ToString(), Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = ChatMessageRole.User.ToString(), Content = "What's the best way to train a parrot?" }
+                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
+                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
+                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
             };
 
             var completionUpdate = OpenAIChatModelFactory.StreamingChatCompletionUpdate(

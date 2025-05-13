@@ -11,14 +11,7 @@
                 // Check for token in the query string
                 if (context.Request.Query.TryGetValue("access_token", out var token))
                 {
-                    context.Request.Headers["Authorization"] = $"Bearer {token}";
-                }
-                else
-                {
-                    // If no token is found, return a 401 Unauthorized response
-                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    await context.Response.WriteAsync("Unauthorized");
-                    return;
+                    context.Request.Headers.Authorization = $"Bearer {token}";
                 }
             }
 

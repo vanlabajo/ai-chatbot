@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -19,13 +18,16 @@ namespace Backend.Test.IntegrationTests.Api
         {
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                      .AddUserSecrets<CustomWebApplicationFactory>();
+                config.Sources.Clear();
+                var newConfig = new ConfigurationBuilder()
+                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                    .AddUserSecrets<CustomWebApplicationFactory>();
+
+                config.AddConfiguration(newConfig.Build());
             });
 
             builder.ConfigureTestServices(services =>
             {
-
                 services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = TestingAuthHandler.AuthenticationScheme;
@@ -62,4 +64,64 @@ namespace Backend.Test.IntegrationTests.Api
             return Task.FromResult(result);
         }
     }
+
+    public class AllowedOriginsFactory : CustomWebApplicationFactory
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.ConfigureAppConfiguration(static (context, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["AllowedOrigins:0"] = "http://localhost:3000"
+                });
+            });
+
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestingAuthHandler.AuthenticationScheme;
+                    options.DefaultScheme = TestingAuthHandler.AuthenticationScheme;
+                    options.DefaultChallengeScheme = TestingAuthHandler.AuthenticationScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.AuthenticationScheme, options => { });
+
+                services.AddAuthorizationBuilder()
+                    .SetDefaultPolicy(new AuthorizationPolicyBuilder(TestingAuthHandler.AuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .Build());
+            });
+        }
+    }
+
+    public class EmptyOriginsFactory : CustomWebApplicationFactory
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.ConfigureAppConfiguration(static (context, config) =>
+            {
+                config.Sources.Clear();
+                config.AddInMemoryCollection([]);
+            });
+
+            builder.ConfigureTestServices(services =>
+            {
+
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestingAuthHandler.AuthenticationScheme;
+                    options.DefaultScheme = TestingAuthHandler.AuthenticationScheme;
+                    options.DefaultChallengeScheme = TestingAuthHandler.AuthenticationScheme;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestingAuthHandler>(TestingAuthHandler.AuthenticationScheme, options => { });
+
+                services.AddAuthorizationBuilder()
+                    .SetDefaultPolicy(new AuthorizationPolicyBuilder(TestingAuthHandler.AuthenticationScheme)
+                    .RequireAuthenticatedUser()
+                    .Build());
+            });
+        }
+    }
+
 }

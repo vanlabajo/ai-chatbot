@@ -1,19 +1,15 @@
 ﻿using Backend.Api.Controllers;
-using Backend.Core.DTOs;
 using Backend.Core;
-using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System.Net.WebSockets;
+using Backend.Core.DTOs;
 using Backend.Core.Exceptions;
 using Backend.Core.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using System.Net.WebSockets;
 using System.Security.Claims;
+using System.Text;
 
 namespace Backend.Test.UnitTests.Api
 {
@@ -124,21 +120,8 @@ namespace Backend.Test.UnitTests.Api
         public async Task Chat_ThrowsBadRequest_WhenMessageIsEmpty()
         {
             // Arrange
-            // Arrange
             var openAiService = new Mock<IOpenAIService>();
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
-
-            static async IAsyncEnumerable<string> GetTestValues()
-            {
-                yield return "This is the";
-                yield return " Test Subject!";
-
-                await Task.CompletedTask;
-            }
-
-            openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
-                .Returns(GetTestValues);
-
             var cacheService = new Mock<ICacheService>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [

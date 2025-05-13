@@ -229,5 +229,105 @@ namespace Backend.Test.UnitTests.Api
             Assert.Equal("Hello", cachedSessions[0].Messages[2].Content);
             Assert.Equal("Hello, World!", cachedSessions[0].Messages[3].Content);
         }
+
+        [Fact]
+        public async Task Chat_AddMessageToSession_WhenSessionExists()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+            static async IAsyncEnumerable<string> GetTestValues()
+            {
+                yield return "Hello,";
+                yield return " World!";
+                await Task.CompletedTask;
+            }
+            openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
+                .Returns(GetTestValues);
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            var existingSession = new ChatSession
+            {
+                SessionId = "001",
+                Messages =
+                [
+                    new() { Role = ChatRole.User, Content = "Hello" },
+                    new() { Role = ChatRole.Assistant, Content = "Hi there!" }
+                ]
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([existingSession]);
+            List<ChatSession>? cachedSessions = null;
+            cacheService.Setup(x => x.SetAsync("session-testuser", It.IsAny<List<ChatSession>>(), null, It.IsAny<CancellationToken>()))
+                .Callback<string, List<ChatSession>, TimeSpan?, CancellationToken>((key, sessions, expiration, token) =>
+                {
+                    cachedSessions = sessions;
+                });
+            var request = new ChatRequest { SessionId = "001", Message = "How are you?" };
+            // Act
+            var result = await controller.Chat(request, default);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var response = Assert.IsType<ChatResponse>(okResult.Value);
+            Assert.Equal("Hello, World!", response.Response);
+            Assert.NotNull(cachedSessions);
+            Assert.Single(cachedSessions);
+            Assert.Equal(4, cachedSessions[0].Messages.Count);
+        }
+
+        [Fact]
+        public async Task Chat_NewSession_WhenSessionDoesNotExist()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+            static async IAsyncEnumerable<string> GetTestValues()
+            {
+                yield return "Hello,";
+                yield return " World!";
+                await Task.CompletedTask;
+            }
+            openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
+                .Returns(GetTestValues);
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            List<ChatSession>? cachedSessions = null;
+            cacheService.Setup(x => x.SetAsync("session-testuser", It.IsAny<List<ChatSession>>(), null, It.IsAny<CancellationToken>()))
+                .Callback<string, List<ChatSession>, TimeSpan?, CancellationToken>((key, sessions, expiration, token) =>
+                {
+                    cachedSessions = sessions;
+                });
+            var request = new ChatRequest { SessionId = "001", Message = "Hello" };
+            // Act
+            var result = await controller.Chat(request, default);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var response = Assert.IsType<ChatResponse>(okResult.Value);
+            Assert.Equal("Hello, World!", response.Response);
+            Assert.NotNull(cachedSessions);
+            Assert.Single(cachedSessions);
+        }
     }
 }

@@ -287,30 +287,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
         }
 
         [Fact]
-        public async Task GetChatResponseStreamingAsync_WithCompletionUpdatesIsNull_ThrowsNotFoundException()
-        {
-            // Arrange
-            var chatMessages = new List<Backend.Core.Models.ChatMessage>
-            {
-                new() { Role = Backend.Core.Models.ChatRole.System, Content = "You are a helpful assistant that talks like a pirate." },
-                new() { Role = Backend.Core.Models.ChatRole.User, Content = "Hi, can you help me?" },
-                new() { Role = Backend.Core.Models.ChatRole.Assistant, Content = "Arrr! Of course, me hearty! What can I do for ye?" },
-                new() { Role = Backend.Core.Models.ChatRole.User, Content = "What's the best way to train a parrot?" }
-            };
-            // Act
-            var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
-            {
-                await foreach (var _ in _openAIService.GetChatResponseStreamingAsync(chatMessages))
-                {
-                    // Force enumeration to trigger the exception
-                }
-            });
-            // Assert
-            Assert.Equal("Chat response not found.", exception.Message);
-        }
-
-        [Fact]
-        public async Task GetChatResponseStreamingAsync_WithcompletionUpdateIsNull_ThrowsNotFoundException()
+        public async Task GetChatResponseStreamingAsync_ThrowsNotFoundException_WhenNoCompletionUpdate()
         {
             // Arrange
             _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
@@ -325,10 +302,8 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             // Act
             var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
             {
-                await foreach (var _ in _openAIService.GetChatResponseStreamingAsync(chatMessages))
-                {
-                    // Force enumeration to trigger the exception
-                }
+                // Foreach here to force the async streaming to execute
+                await foreach (var _ in _openAIService.GetChatResponseStreamingAsync(chatMessages)) ;
             });
             // Assert
             Assert.Equal("Chat response not found.", exception.Message);

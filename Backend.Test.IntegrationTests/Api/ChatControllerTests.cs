@@ -5,7 +5,10 @@ using System.Text.Json;
 
 namespace Backend.Test.IntegrationTests.Api
 {
-    public class ChatControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
+    public class ChatControllerTests(CustomWebApplicationFactory factory, AllowedOriginsFactory allowedOriginsFactory, EmptyOriginsFactory emptyOriginsFactory) : 
+        IClassFixture<CustomWebApplicationFactory>,
+        IClassFixture<AllowedOriginsFactory>,
+        IClassFixture<EmptyOriginsFactory>
     {
         private readonly HttpClient _client = factory.CreateClient();
         private readonly JsonSerializerOptions _jsonOptions = new()
@@ -38,6 +41,37 @@ namespace Backend.Test.IntegrationTests.Api
             var responseString = await response.Content.ReadAsStringAsync();
             var responseObj = JsonSerializer.Deserialize<ChatResponse>(responseString, _jsonOptions);
             Assert.NotEqual(string.Empty, responseObj!.Response);
+        }
+
+        [Fact]
+        public async Task Chat_CorsPolicy_AllowsConfiguredOrigin()
+        {
+            // Arrange
+            var client = allowedOriginsFactory.CreateClient();
+            var request = new ChatRequest { Message = "Hello" };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+            // Act
+            var response = await client.PostAsync("/api/chat", content);
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.Headers.Contains("Access-Control-Allow-Origin"));
+            Assert.Equal("http://localhost:3000", response.Headers.GetValues("Access-Control-Allow-Origin").First());
+        }
+
+        [Fact]
+        public async Task Chat_CorsPolicy_DoesNotAllowAnyOrigin_WhenAllowedOriginsIsEmpty()
+        {
+            // Arrange
+            var client = emptyOriginsFactory.CreateClient();
+            var request = new ChatRequest { Message = "Hello" };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+            // Act
+            var response = await client.PostAsync("/api/chat", content);
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
         }
     }
 }

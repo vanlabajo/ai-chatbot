@@ -2,6 +2,7 @@
 {
     public class ChatMessage
     {
+        public string ChatMessageId { get; } = Guid.NewGuid().ToString();
         public required ChatRole Role { get; set; }
         public required string Content { get; set; }
     }

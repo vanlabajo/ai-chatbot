@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Backend.Api.Controllers
@@ -17,7 +18,10 @@ namespace Backend.Api.Controllers
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
 
-        [HttpGet("chat")]
+        [HttpGet("chat/{sessionId?}")]
+        [ProducesResponseType(typeof(WebSocket), StatusCodes.Status101SwitchingProtocols)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task Chat(string? sessionId, CancellationToken cancellationToken)
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
@@ -28,6 +32,72 @@ namespace Backend.Api.Controllers
 
             var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
             await ProcessWebSocketMessages(webSocket, sessionId, cancellationToken);
+        }
+
+        [HttpGet("chat/sessions")]
+        [ProducesResponseType(typeof(IAsyncEnumerable<ChatSession>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async IAsyncEnumerable<ChatSession> GetSessions([EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            Response.Headers.Append("Content-Type", "text/event-stream");
+            var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
+
+            // Only track session IDs that have been sent in this connection
+            var sentSessionIds = new HashSet<string>();
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
+                if (sessions != null)
+                {
+                    foreach (var session in sessions)
+                    {
+                        if (sentSessionIds.Add(session.SessionId))
+                        {
+                            // Only yield if this session hasn't been sent before
+                            // Remove messages from the session to avoid sending large data
+                            yield return new ChatSession { SessionId = session.SessionId, Subject = session.Subject };
+                        }
+                    }
+                }
+                // Use a slightly longer delay to reduce polling frequency and CPU usage
+                await Task.Delay(1500, cancellationToken);
+            }
+        }
+
+
+        [HttpGet("chat/sessions/{sessionId}")]
+        [ProducesResponseType(typeof(IAsyncEnumerable<ChatMessage>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async IAsyncEnumerable<ChatMessage> GetSessionMessages(string sessionId, [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            Response.Headers.Append("Content-Type", "text/event-stream");
+            var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
+
+            // Only track message IDs that have been sent in this connection
+            var sentMessageIds = new HashSet<string>();
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
+                if (sessions != null)
+                {
+                    var session = sessions.FirstOrDefault(s => s.SessionId == sessionId);
+                    if (session != null)
+                    {
+                        foreach (var message in session.Messages)
+                        {
+                            if (sentMessageIds.Add(message.ChatMessageId))
+                            {
+                                // Only yield if this message hasn't been sent before
+                                yield return message;
+                            }
+                        }
+                    }
+                }
+                // Use a slightly longer delay to reduce polling frequency and CPU usage
+                await Task.Delay(1500, cancellationToken);
+            }
         }
 
         private async Task ProcessWebSocketMessages(WebSocket webSocket, string? sessionId, CancellationToken cancellationToken)

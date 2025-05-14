@@ -5,6 +5,6 @@
         public string SessionId { get; set; } = Guid.NewGuid().ToString();
         public string? Subject { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-        public List<ChatMessage> Messages { get; set; } = new();
+        public List<ChatMessage> Messages { get; set; } = [];
     }
 }

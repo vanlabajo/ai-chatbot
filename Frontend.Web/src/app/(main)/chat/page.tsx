@@ -28,7 +28,7 @@ export default function Chat() {
     }
   };
 
-  const initializeEventSource = useCallback(async () => {
+  const initializeWebSocket = useCallback(async () => {
     if (isInitializedRef.current) {
       console.warn("WebSocket already initialized");
       return;
@@ -42,11 +42,12 @@ export default function Chat() {
       setIsLoading(false);
       return;
     }
-    const webSocketEndpoint = process.env.NEXT_PUBLIC_WEBSOCKET_ENDPOINT;
+    const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
 
-    if (!webSocketEndpoint) {
-      throw new Error("WebSocket endpoint is not defined");
+    if (!apiEndpoint) {
+      throw new Error("API endpoint is not defined");
     }
+    const webSocketEndpoint = apiEndpoint.replace(/^http(s?):\/\//, "ws$1://") + "/stream/chat";
     const url = new URL(webSocketEndpoint);
     url.searchParams.append("access_token", encodeURIComponent(token));
 
@@ -61,14 +62,14 @@ export default function Chat() {
     newWebSocket.onclose = () => {
       console.warn("WebSocket closed. Attempting to reconnect...");
       isInitializedRef.current = false; // Allow reinitialization
-      setTimeout(() => initializeEventSource(), 5000); // Retry after 5 seconds
+      setTimeout(() => initializeWebSocket(), 5000); // Retry after 5 seconds
     };
 
     setWebSocket(newWebSocket);
   }, [setIsLoading, setWebSocket]);
 
   useEffect(() => {
-    initializeEventSource();
+    initializeWebSocket();
 
     return () => {
       if (webSocket) {
@@ -76,7 +77,38 @@ export default function Chat() {
         isInitializedRef.current = false;
       }
     };
-  }, [initializeEventSource, webSocket]);
+  }, [initializeWebSocket, webSocket]);
+
+  useEffect(() => {
+    // Only run for simulation
+    if (messages.length > 0) return;
+
+    const conversation: ChatMessage[] = [
+      { role: "user", content: "Hello, assistant!", id: "1" },
+      { role: "assistant", content: "Hello! How can I help you today?", id: "2" },
+      { role: "user", content: "Can you tell me a joke?", id: "3" },
+      { role: "assistant", content: "Why did the scarecrow win an award? Because he was outstanding in his field!", id: "4" },
+      { role: "user", content: "Haha, that's funny!", id: "5" },
+      { role: "assistant", content: "Glad you liked it! Anything else I can do for you?", id: "6" },
+    ];
+
+    let idx = 0;
+    setIsLoading(true);
+
+    const interval = setInterval(() => {
+      const nextMessage = conversation[idx];
+      if (!nextMessage) {
+        setIsLoading(false);
+        clearInterval(interval);
+        return;
+      }
+      setMessages((prev) => [...prev, nextMessage]);
+      idx++;
+    }, 1200);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(text?: string) {
     if (!webSocket || webSocket.readyState !== WebSocket.OPEN || isLoading) return;
@@ -127,13 +159,24 @@ export default function Chat() {
         ref={messagesContainerRef}
       >
         {messages.length == 0 && <ChatOverview />}
-        {messages.map((message, index) => (
-          <PreviewChatMessage key={index} message={message} />
-        ))}
+        {messages.map((message, index) => {
+          const isLatestAssistant =
+            message.role === 'assistant' &&
+            // No assistant messages exist after this one
+            !messages.slice(index + 1).some((m) => m.role === 'assistant');
+
+          return (
+            <PreviewChatMessage
+              key={index}
+              message={message}
+              isLatestAssistant={isLatestAssistant}
+            />
+          );
+        })}
         {isLoading && <ThinkingChatMessage />}
         <div ref={messagesEndRef} className="shrink-0 min-w-[24px] min-h-[24px]" />
       </div>
-      <div className="flex px-4 bg-background gap-2 w-full md:max-w-3xl mx-auto">
+      <div className="flex px-4 mx-auto bg-background gap-2 w-full md:max-w-3xl md:pb-4 lg:pb-2">
         <ChatInput
           question={question}
           setQuestion={setQuestion}

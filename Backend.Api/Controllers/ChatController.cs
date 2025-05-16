@@ -71,8 +71,11 @@ namespace Backend.Api.Controllers
                     SessionId = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [
-                        new() { Role = ChatRole.System, Content = "You are Rick from the TV show Rick & Morty. Pretend to be Rick." },
-                        new() { Role = ChatRole.User, Content = "Introduce yourself." }
+                        new() { Role = ChatRole.System, Content = "You are a helpful assistant, providing informative and concise answers to user queries. Your goal is to be informative, respectful, and helpful." },
+                        new() { Role = ChatRole.System, Content = "You are trained to be a conversational AI assistant." },
+                        new() { Role = ChatRole.System, Content = "You are available to answer questions on a wide range of topics, but you are not a medical professional, financial advisor, or lawyer." },
+                        new() { Role = ChatRole.System, Content = "You will answer questions in a way that is easy to understand, avoiding technical jargon unless necessary." },
+                        new() { Role = ChatRole.System, Content = "If you are asked to perform actions (e.g., make a booking), you will advise the user on how to do so, but you will not perform the action yourself." }
                     ]
                 };
                 sessions.Add(session);

@@ -1,11 +1,13 @@
-﻿using System.IO;
-using System.Net;
+﻿using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 
 namespace Backend.Test.IntegrationTests.Api
 {
-    public class StreamControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
+    public class StreamControllerTests(CustomWebApplicationFactory factory, AllowedOriginsFactory allowedOriginsFactory, EmptyOriginsFactory emptyOriginsFactory) :
+        IClassFixture<CustomWebApplicationFactory>,
+        IClassFixture<AllowedOriginsFactory>,
+        IClassFixture<EmptyOriginsFactory>
     {
         private readonly HttpClient _client = factory.CreateClient();
 
@@ -41,6 +43,42 @@ namespace Backend.Test.IntegrationTests.Api
             }
             // Assert
             Assert.False(string.IsNullOrEmpty(accumulatedMessage.ToString()));
+        }
+
+        [Fact]
+        public async Task GetSessions_CorsPolicy_AllowsConfiguredOrigin()
+        {
+            // Arrange
+            var client = allowedOriginsFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            // Act
+            using var response = await client.GetAsync(
+                "/stream/chat/sessions",
+                HttpCompletionOption.ResponseHeadersRead,
+                cts.Token);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.Headers.Contains("Access-Control-Allow-Origin"));
+            Assert.Equal("http://localhost:3000", response.Headers.GetValues("Access-Control-Allow-Origin").First());
+        }
+
+        [Fact]
+        public async Task Chat_CorsPolicy_DoesNotAllowAnyOrigin_WhenAllowedOriginsIsEmpty()
+        {
+            // Arrange
+            var client = emptyOriginsFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            // Act
+            using var response = await client.GetAsync(
+                "/stream/chat/sessions",
+                HttpCompletionOption.ResponseHeadersRead,
+                cts.Token);
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
         }
     }
 }

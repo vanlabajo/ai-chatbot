@@ -5,7 +5,7 @@ using Moq;
 
 namespace Backend.Test.UnitTests.Api
 {
-    public class CustomAuthenticationMiddlewareTests
+    public class QueryStringTokenMiddlewareTests
     {
         [Fact]
         public async Task InvokeAsync_AddsAuthorizationHeader_WhenAccessTokenIsPresentInQuery()
@@ -17,7 +17,7 @@ namespace Backend.Test.UnitTests.Api
             context.Features.Set(webSocketFeature.Object);
             context.Request.QueryString = new QueryString("?access_token=test_token");
             var next = new RequestDelegate((innerContext) => Task.CompletedTask);
-            var middleware = new WebSocketAuthenticationMiddleware(next);
+            var middleware = new QueryStringTokenMiddleware(next);
             // Act
             await middleware.InvokeAsync(context);
             // Assert
@@ -33,7 +33,7 @@ namespace Backend.Test.UnitTests.Api
             webSocketFeature.Setup(f => f.IsWebSocketRequest).Returns(true);
             context.Features.Set(webSocketFeature.Object);
             var next = new RequestDelegate((innerContext) => Task.CompletedTask);
-            var middleware = new WebSocketAuthenticationMiddleware(next);
+            var middleware = new QueryStringTokenMiddleware(next);
             // Act
             await middleware.InvokeAsync(context);
             // Assert
@@ -54,7 +54,7 @@ namespace Backend.Test.UnitTests.Api
                 nextCalled = true;
                 return Task.CompletedTask;
             });
-            var middleware = new WebSocketAuthenticationMiddleware(next);
+            var middleware = new QueryStringTokenMiddleware(next);
             // Act
             await middleware.InvokeAsync(context);
             // Assert

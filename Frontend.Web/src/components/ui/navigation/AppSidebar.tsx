@@ -1,5 +1,5 @@
-"use client"
-import { Input } from "@/components/Input"
+"use client";
+import { Input } from "@/components/Input";
 import {
   Sidebar,
   SidebarContent,
@@ -7,89 +7,138 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarMenu
-} from "@/components/Sidebar"
-import { Logo } from "@/public/Logo"
-import { BookText, House, PackageSearch } from "lucide-react"
-import * as React from "react"
-import { UserProfile } from "./UserProfile"
+  SidebarLink,
+  SidebarMenu,
+  SidebarMenuItem,
+} from "@/components/Sidebar";
+import { getToken } from "@/lib/msal";
+import { ChatSession } from "@/lib/types";
+import { Logo } from "@/public/Logo";
+import { ComponentProps, useEffect, useRef, useState } from "react";
+import { LoadingStatus } from "./LoadingStatus";
+import { UserProfile } from "./UserProfile";
 
-const navigation = [
-  {
-    name: "Home",
-    href: "#",
-    icon: House,
-    notifications: false,
-    active: true,
-  },
-  {
-    name: "Inbox",
-    href: "#",
-    icon: PackageSearch,
-    notifications: 2,
-    active: false,
-  },
-] as const
+export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
+  const [navigation, setNavigation] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const sessionIds = useRef<Set<string>>(new Set());
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const cancelledRef = useRef(false);
 
-const navigation2 = [
-  {
-    name: "Sales",
-    href: "#",
-    icon: BookText,
-    children: [
-      {
-        name: "Quotes",
-        href: "#",
-        active: false,
-      },
-      {
-        name: "Orders",
-        href: "#",
-        active: false,
-      },
-      {
-        name: "Insights & Reports",
-        href: "#",
-        active: false,
-      },
-    ],
-  },
-  {
-    name: "Products",
-    href: "#",
-    icon: PackageSearch,
-    children: [
-      {
-        name: "Items",
-        href: "#",
-        active: false,
-      },
-      {
-        name: "Variants",
-        href: "#",
-        active: false,
-      },
-      {
-        name: "Suppliers",
-        href: "#",
-        active: false,
-      },
-    ],
-  },
-] as const
+  useEffect(() => {
+    cancelledRef.current = false;
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const [openMenus, setOpenMenus] = React.useState<string[]>([
-    navigation2[0].name,
-    navigation2[1].name,
-  ])
-  const toggleMenu = (name: string) => {
-    setOpenMenus((prev: string[]) =>
-      prev.includes(name)
-        ? prev.filter((item: string) => item !== name)
-        : [...prev, name],
-    )
-  }
+    async function startEventSource() {
+      const token = await getToken();
+      if (!token) {
+        console.error("Failed to fetch token");
+        return;
+      }
+      const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+      if (!apiEndpoint) {
+        throw new Error("API endpoint is not defined");
+      }
+      const url = new URL(apiEndpoint + "/stream/chat/sessions");
+      url.searchParams.append("access_token", encodeURIComponent(token));
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      const es = new EventSource(url.toString());
+      eventSourceRef.current = es;
+
+      es.onmessage = (event) => {
+        if (cancelledRef.current) return;
+        try {
+          const session: ChatSession = JSON.parse(event.data);
+          if (!sessionIds.current.has(session.sessionId)) {
+            sessionIds.current.add(session.sessionId);
+            setNavigation((prev) => {
+              const updated = [...prev, session];
+              // If only one session, set it as active
+              if (updated.length === 1) {
+                setActiveSessionId(session.sessionId);
+              }
+              return updated;
+            });
+          }
+        } catch (error) {
+          console.error("Failed to parse event data:", error);
+        }
+      };
+
+      es.onerror = (error) => {
+        if (cancelledRef.current) return;
+        console.error("EventSource error:", error);
+      };
+    }
+
+    function simulateSessionStream(onSession: (session: ChatSession) => void) {
+      let count = 0;
+      const interval = setInterval(() => {
+        count++;
+        const session: ChatSession = {
+          sessionId: `session-${count}`,
+          subject: `Simulated Subject ${count}`,
+          timestamp: new Date().toISOString(),
+          messages: [],
+        };
+        onSession(session);
+
+        // Optionally, simulate an update to an existing session
+        if (count === 3) {
+          setTimeout(() => {
+            onSession({
+              sessionId: "session-2",
+              subject: "Simulated Subject 2 (updated)",
+              timestamp: new Date().toISOString(),
+              messages: [],
+            });
+          }, 1500);
+        }
+
+        // Stop after 5 sessions for demo
+        if (count >= 5) clearInterval(interval);
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }
+
+    startEventSource();
+    // const cleanup = simulateSessionStream((session) => {
+    //   setNavigation((prev) => {
+    //     const existingIndex = prev.findIndex(s => s.sessionId === session.sessionId);
+    //     if (existingIndex === -1) {
+    //       // New session
+    //       const updated = [...prev, session];
+    //       if (updated.length === 1) setActiveSessionId(session.sessionId);
+    //       return updated;
+    //     } else {
+    //       // Update existing session
+    //       const updated = [...prev];
+    //       updated[existingIndex] = { ...prev[existingIndex], ...session };
+    //       return updated;
+    //     }
+    //   });
+    // });
+
+    return () => {
+      cancelledRef.current = true;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      // cleanup && cleanup();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (navigation.length === 1) {
+      setActiveSessionId(navigation[0].sessionId);
+    }
+  }, [navigation]);
+
   return (
     <Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
       <SidebarHeader className="px-3 py-4">
@@ -112,7 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <Input
               type="search"
-              placeholder="Search items..."
+              placeholder="Search sessions..."
               className="[&>input]:sm:py-1.5"
             />
           </SidebarGroupContent>
@@ -120,70 +169,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup className="pt-0">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {/* {navigation.map((item) => (
-                <SidebarMenuItem key={item.name}>
+              {navigation.map((session: ChatSession) => (
+                <SidebarMenuItem key={session.sessionId}>
                   <SidebarLink
-                    href="#"
-                    isActive={item.active}
-                    icon={item.icon}
-                    notifications={item.notifications}
+                    href={`#${session.sessionId}`}
+                    isActive={session.sessionId === activeSessionId}
+                    className="data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                    onClick={() => setActiveSessionId(session.sessionId)}
                   >
-                    {item.name}
+                    {session.subject || <LoadingStatus />}
                   </SidebarLink>
                 </SidebarMenuItem>
-              ))} */}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {/* <div className="px-3">
-          <Divider className="my-0 py-0" />
-        </div> */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-4">
-              {/* {navigation2.map((item) => (
-                <SidebarMenuItem key={item.name}>
-                  <button
-                    onClick={() => toggleMenu(item.name)}
-                    className={cx(
-                      "flex w-full items-center justify-between gap-x-2.5 rounded-md p-2 text-base text-gray-900 transition hover:bg-gray-200/50 sm:text-sm dark:text-gray-400 hover:dark:bg-gray-900 hover:dark:text-gray-50",
-                      focusRing,
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <item.icon
-                        className="size-[18px] shrink-0"
-                        aria-hidden="true"
-                      />
-                      {item.name}
-                    </div>
-                    <RiArrowDownSFill
-                      className={cx(
-                        openMenus.includes(item.name)
-                          ? "rotate-0"
-                          : "-rotate-90",
-                        "size-5 shrink-0 transform text-gray-400 transition-transform duration-150 ease-in-out dark:text-gray-600",
-                      )}
-                      aria-hidden="true"
-                    />
-                  </button>
-                  {item.children && openMenus.includes(item.name) && (
-                    <SidebarMenuSub>
-                      <div className="absolute inset-y-0 left-4 w-px bg-gray-300 dark:bg-gray-800" />
-                      {item.children.map((child) => (
-                        <SidebarMenuItem key={child.name}>
-                          <SidebarSubLink
-                            href={child.href}
-                            isActive={child.active}
-                          >
-                            {child.name}
-                          </SidebarSubLink>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenuSub>
-                  )}
-                </SidebarMenuItem>
-              ))} */}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -193,5 +190,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <UserProfile />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

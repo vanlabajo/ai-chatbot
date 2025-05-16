@@ -111,7 +111,7 @@ if (!app.Environment.IsProduction())
 }
 
 app.UseWebSockets();
-app.UseMiddleware<WebSocketAuthenticationMiddleware>();
+app.UseMiddleware<QueryStringTokenMiddleware>();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

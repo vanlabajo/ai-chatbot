@@ -278,8 +278,7 @@ namespace Backend.Test.UnitTests.Api
             };
             // Act
             var exception = await Assert.ThrowsAsync<BadRequestException>(async () => {
-                // Foreach here to force the async streaming to execute
-                await foreach (var _ in controller.GetSessions(default)) ;
+                await controller.GetSessions(default);
             });
             // Assert
             Assert.Equal("User identity is not available.", exception.Message);
@@ -296,6 +295,9 @@ namespace Backend.Test.UnitTests.Api
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
             var context = new DefaultHttpContext() { User = user };
+            // Use a MemoryStream to capture the response
+            var memoryStream = new MemoryStream();
+            context.Response.Body = memoryStream;
             var controller = new StreamController(openAiService.Object, cacheService.Object)
             {
                 ControllerContext = new ControllerContext
@@ -305,24 +307,23 @@ namespace Backend.Test.UnitTests.Api
             };
             var sessions = new List<ChatSession>
             {
-                new() { SessionId = "session1", Messages = [] },
-                new() { SessionId = "session2", Messages = [] }
+                new() { SessionId = "session1", Subject = "Test Subject", Messages = [] },
+                new() { SessionId = "session2", Subject = "Test Subject", Messages = [] }
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
 
             var result = new List<ChatSession>();
-            var cts = new CancellationTokenSource();
+
             // Act
             try
             {
-                // Cancel the token after 1.5 seconds
-                cts.CancelAfter(TimeSpan.FromSeconds(1.5));
+                var cts = new CancellationTokenSource();
+                // Cancel after the first iteration to avoid infinite loop
+                cts.CancelAfter(100);
 
-                await foreach (var session in controller.GetSessions(cts.Token))
-                {
-                    result.Add(session);
-                }
+                // Act
+                await controller.GetSessions(cts.Token);
             }
             catch (TaskCanceledException)
             {
@@ -330,10 +331,11 @@ namespace Backend.Test.UnitTests.Api
             }
 
             // Assert
-            Assert.All(sessions, session =>
-            {
-                Assert.Contains(result, s => s.SessionId == session.SessionId);
-            });
+            memoryStream.Position = 0;
+            var output = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.Contains("session1", output);
+            Assert.Contains("Test Subject", output);
+            Assert.Contains("data:", output);
         }
 
         [Fact]
@@ -347,6 +349,9 @@ namespace Backend.Test.UnitTests.Api
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
             var context = new DefaultHttpContext() { User = user };
+            // Use a MemoryStream to capture the response
+            var memoryStream = new MemoryStream();
+            context.Response.Body = memoryStream;
             var controller = new StreamController(openAiService.Object, cacheService.Object)
             {
                 ControllerContext = new ControllerContext
@@ -358,23 +363,26 @@ namespace Backend.Test.UnitTests.Api
                 .ReturnsAsync(() => default!);
             // Act
             var result = new List<ChatSession>();
-            var cts = new CancellationTokenSource();
+
             try
             {
-                // Cancel the token after 1 second
-                cts.CancelAfter(TimeSpan.FromSeconds(1));
+                var cts = new CancellationTokenSource();
+                // Cancel after the first iteration to avoid infinite loop
+                cts.CancelAfter(100);
 
-                await foreach (var session in controller.GetSessions(cts.Token))
-                {
-                    result.Add(session);
-                }
+                // Act
+                await controller.GetSessions(cts.Token);
             }
             catch (TaskCanceledException)
             {
                 // Expected exception due to cancellation
             }
             // Assert
-            Assert.Empty(result);
+            memoryStream.Position = 0;
+            var output = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.DoesNotContain("session1", output);
+            Assert.DoesNotContain("Test Subject", output);
+            Assert.DoesNotContain("data:", output);
         }
 
         [Fact]
@@ -384,6 +392,9 @@ namespace Backend.Test.UnitTests.Api
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
             var context = new DefaultHttpContext();
+            // Use a MemoryStream to capture the response
+            var memoryStream = new MemoryStream();
+            context.Response.Body = memoryStream;
             var controller = new StreamController(openAiService.Object, cacheService.Object)
             {
                 ControllerContext = new ControllerContext
@@ -391,10 +402,10 @@ namespace Backend.Test.UnitTests.Api
                     HttpContext = context
                 }
             };
+
             // Act
             var exception = await Assert.ThrowsAsync<BadRequestException>(async () => {
-                // Foreach here to force the async streaming to execute
-                await foreach (var _ in controller.GetSessionMessages("session1", default)) ;
+                await controller.GetSessionMessages("session1", default);
             });
             // Assert
             Assert.Equal("User identity is not available.", exception.Message);
@@ -411,6 +422,9 @@ namespace Backend.Test.UnitTests.Api
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
             var context = new DefaultHttpContext() { User = user };
+            // Use a MemoryStream to capture the response
+            var memoryStream = new MemoryStream();
+            context.Response.Body = memoryStream;
             var controller = new StreamController(openAiService.Object, cacheService.Object)
             {
                 ControllerContext = new ControllerContext
@@ -430,27 +444,30 @@ namespace Backend.Test.UnitTests.Api
             var sessions = new List<ChatSession> { session };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>($"session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
-            // Act
+            
             var result = new List<ChatMessage>();
-            var cts = new CancellationTokenSource();
+
+            // Act
             try
             {
-                // Cancel the token after 1.5 seconds
-                cts.CancelAfter(TimeSpan.FromSeconds(1.5));
-                await foreach (var message in controller.GetSessionMessages(sessionId, cts.Token))
-                {
-                    result.Add(message);
-                }
+                var cts = new CancellationTokenSource();
+                // Cancel after the first iteration to avoid infinite loop
+                cts.CancelAfter(100);
+
+                // Act
+                await controller.GetSessionMessages(sessionId, cts.Token);
             }
             catch (TaskCanceledException)
             {
                 // Expected exception due to cancellation
             }
+
             // Assert
-            Assert.All(messages, message =>
-            {
-                Assert.Contains(result, m => m.Role == message.Role && m.Content == message.Content);
-            });
+            memoryStream.Position = 0;
+            var output = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.Contains("Hello!", output);
+            Assert.Contains("Hi there!", output);
+            Assert.Contains("data:", output);
         }
 
         [Fact]
@@ -464,6 +481,9 @@ namespace Backend.Test.UnitTests.Api
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
             var context = new DefaultHttpContext() { User = user };
+            // Use a MemoryStream to capture the response
+            var memoryStream = new MemoryStream();
+            context.Response.Body = memoryStream;
             var controller = new StreamController(openAiService.Object, cacheService.Object)
             {
                 ControllerContext = new ControllerContext
@@ -479,23 +499,26 @@ namespace Backend.Test.UnitTests.Api
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>($"session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
             // Act
-            var result = new List<ChatMessage>();
-            var cts = new CancellationTokenSource();
             try
             {
-                // Cancel the token after 1 second
-                cts.CancelAfter(TimeSpan.FromSeconds(1));
-                await foreach (var message in controller.GetSessionMessages(sessionId, cts.Token))
-                {
-                    result.Add(message);
-                }
+                var cts = new CancellationTokenSource();
+                // Cancel after the first iteration to avoid infinite loop
+                cts.CancelAfter(100);
+
+                // Act
+                await controller.GetSessionMessages(sessionId, cts.Token);
             }
             catch (TaskCanceledException)
             {
                 // Expected exception due to cancellation
             }
+
             // Assert
-            Assert.Empty(result);
+            memoryStream.Position = 0;
+            var output = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.DoesNotContain("session1", output);
+            Assert.DoesNotContain("Test Subject", output);
+            Assert.DoesNotContain("data:", output);
         }
     }
 }

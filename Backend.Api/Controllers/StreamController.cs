@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using System.Net.WebSockets;
-using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 
 namespace Backend.Api.Controllers
 {
@@ -19,7 +19,6 @@ namespace Backend.Api.Controllers
         private readonly ICacheService _cacheService = cacheService;
 
         [HttpGet("chat/{sessionId?}")]
-        [ProducesResponseType(typeof(WebSocket), StatusCodes.Status101SwitchingProtocols)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task Chat(string? sessionId, CancellationToken cancellationToken)
@@ -35,69 +34,105 @@ namespace Backend.Api.Controllers
         }
 
         [HttpGet("chat/sessions")]
-        [ProducesResponseType(typeof(IAsyncEnumerable<ChatSession>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async IAsyncEnumerable<ChatSession> GetSessions([EnumeratorCancellation] CancellationToken cancellationToken)
+        public async Task GetSessions(CancellationToken cancellationToken)
         {
-            Response.Headers.Append("Content-Type", "text/event-stream");
             var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
 
-            // Only track session IDs that have been sent in this connection
-            var sentSessionIds = new HashSet<string>();
+            Response.ContentType = "text/event-stream";
+            Response.Headers.Append("Cache-Control", "no-cache");
 
-            while (!cancellationToken.IsCancellationRequested)
+            var responseStream = Response.Body;
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+            var sentSessionIds = new HashSet<string>();
+            var sessionsWithMissingSubject = new Dictionary<string, string?>();
+
+            try
             {
-                var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
-                if (sessions != null)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    foreach (var session in sessions)
+                    var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
+                    if (sessions != null)
                     {
-                        if (sentSessionIds.Add(session.SessionId))
+                        foreach (var session in sessions)
                         {
-                            // Only yield if this session hasn't been sent before
-                            // Remove messages from the session to avoid sending large data
-                            yield return new ChatSession { SessionId = session.SessionId, Subject = session.Subject };
+                            // New session: send it and track if subject is missing
+                            if (sentSessionIds.Add(session.SessionId))
+                            {
+                                var data = new ChatSession { SessionId = session.SessionId, Subject = session.Subject };
+                                var json = JsonSerializer.Serialize(data, options);
+                                var jsonBytes = Encoding.UTF8.GetBytes($"data: {json}\n\n");
+                                await responseStream.WriteAsync(jsonBytes, cancellationToken);
+                                await responseStream.FlushAsync(cancellationToken);
+
+                                if (string.IsNullOrEmpty(session.Subject))
+                                    sessionsWithMissingSubject[session.SessionId] = null;
+                            }
+                            // Existing session with missing subject: check if subject is now set
+                            else if (sessionsWithMissingSubject.ContainsKey(session.SessionId) && !string.IsNullOrEmpty(session.Subject))
+                            {
+                                var data = new ChatSession { SessionId = session.SessionId, Subject = session.Subject };
+                                var json = JsonSerializer.Serialize(data, options);
+                                var jsonBytes = Encoding.UTF8.GetBytes($"data: {json}\n\n");
+                                await responseStream.WriteAsync(jsonBytes, cancellationToken);
+                                await responseStream.FlushAsync(cancellationToken);
+
+                                // Remove from tracking since subject is now set
+                                sessionsWithMissingSubject.Remove(session.SessionId);
+                            }
                         }
                     }
+                    await Task.Delay(1500, cancellationToken);
                 }
-                // Use a slightly longer delay to reduce polling frequency and CPU usage
-                await Task.Delay(1500, cancellationToken);
             }
+            catch (OperationCanceledException) { }
         }
 
 
         [HttpGet("chat/sessions/{sessionId}")]
-        [ProducesResponseType(typeof(IAsyncEnumerable<ChatMessage>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async IAsyncEnumerable<ChatMessage> GetSessionMessages(string sessionId, [EnumeratorCancellation] CancellationToken cancellationToken)
+        public async Task GetSessionMessages(string sessionId, CancellationToken cancellationToken)
         {
-            Response.Headers.Append("Content-Type", "text/event-stream");
             var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
+
+            Response.ContentType = "text/event-stream";
+            Response.Headers.Append("Cache-Control", "no-cache");
+
+            var responseStream = Response.Body;
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
             // Only track message IDs that have been sent in this connection
             var sentMessageIds = new HashSet<string>();
 
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
-                if (sessions != null)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    var session = sessions.FirstOrDefault(s => s.SessionId == sessionId);
-                    if (session != null)
+                    var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
+                    if (sessions != null)
                     {
-                        foreach (var message in session.Messages)
+                        var session = sessions.FirstOrDefault(s => s.SessionId == sessionId);
+                        if (session != null)
                         {
-                            if (sentMessageIds.Add(message.ChatMessageId))
+                            foreach (var message in session.Messages)
                             {
-                                // Only yield if this message hasn't been sent before
-                                yield return message;
+                                if (sentMessageIds.Add(message.ChatMessageId))
+                                {
+                                    // Only yield if this message hasn't been sent before
+                                    var json = JsonSerializer.Serialize(message, options);
+                                    var jsonBytes = Encoding.UTF8.GetBytes($"data: {json}\n\n");
+                                    await responseStream.WriteAsync(jsonBytes, cancellationToken);
+                                    await responseStream.FlushAsync(cancellationToken);
+                                }
                             }
                         }
                     }
+                    // Use a slightly longer delay to reduce polling frequency and CPU usage
+                    await Task.Delay(1500, cancellationToken);
                 }
-                // Use a slightly longer delay to reduce polling frequency and CPU usage
-                await Task.Delay(1500, cancellationToken);
             }
+            catch (OperationCanceledException) { }
         }
 
         private async Task ProcessWebSocketMessages(WebSocket webSocket, string? sessionId, CancellationToken cancellationToken)
@@ -158,8 +193,11 @@ namespace Backend.Api.Controllers
                     SessionId = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [
-                        new() { Role = ChatRole.System, Content = "You are Rick from the TV show Rick & Morty. Pretend to be Rick." },
-                        new() { Role = ChatRole.User, Content = "Introduce yourself." }
+                        new() { Role = ChatRole.System, Content = "You are a helpful assistant, providing informative and concise answers to user queries. Your goal is to be informative, respectful, and helpful." },
+                        new() { Role = ChatRole.System, Content = "You are trained to be a conversational AI assistant." },
+                        new() { Role = ChatRole.System, Content = "You are available to answer questions on a wide range of topics, but you are not a medical professional, financial advisor, or lawyer." },
+                        new() { Role = ChatRole.System, Content = "You will answer questions in a way that is easy to understand, avoiding technical jargon unless necessary." },
+                        new() { Role = ChatRole.System, Content = "If you are asked to perform actions (e.g., make a booking), you will advise the user on how to do so, but you will not perform the action yourself." }
                     ]
                 };
                 sessions.Add(session);

@@ -2,7 +2,7 @@ import { Button } from "@/components/Button";
 import { Textarea } from "@/components/Textarea";
 import { cx } from "@/lib/utils";
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ArrowUpIcon } from "./ChatIcons";
 
@@ -11,6 +11,7 @@ interface ChatInputProps {
   setQuestion: (question: string) => void;
   onSubmit: (text?: string) => void;
   isLoading: boolean;
+  hideSuggestions: boolean;
 }
 
 const suggestedActions = [
@@ -26,8 +27,12 @@ const suggestedActions = [
   },
 ];
 
-export const ChatInput = ({ question, setQuestion, onSubmit, isLoading }: ChatInputProps) => {
-  const [showSuggestions, setShowSuggestions] = useState(true);
+export const ChatInput = ({ question, setQuestion, onSubmit, isLoading, hideSuggestions = false }: ChatInputProps) => {
+  const [showSuggestions, setShowSuggestions] = useState(!hideSuggestions);
+
+  useEffect(() => {
+    setShowSuggestions(!hideSuggestions);
+  }, [hideSuggestions]);
 
   return (
     <div className="relative w-full flex flex-col gap-4">

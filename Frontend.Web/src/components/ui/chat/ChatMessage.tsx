@@ -7,6 +7,7 @@ import { Markdown } from './Markdown';
 import { TypewriterMarkdown } from './TypewriterMarkdown';
 
 export const PreviewChatMessage = ({ message, isLatestAssistant = false }: { message: ChatMessage; isLatestAssistant?: boolean }) => {
+  if (message.role !== 'assistant' && message.role !== 'user') return;
 
   return (
     <motion.div
@@ -63,8 +64,11 @@ export const ThinkingChatMessage = () => {
           'group-data-[role=user]/message:bg-muted'
         )}
       >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border ring-gray-200">
           <SparklesIcon size={14} />
+        </div>
+        <div className="flex flex-col gap-4 text-left text-gray-500">
+          Thinking...
         </div>
       </div>
     </motion.div>

@@ -3,153 +3,253 @@ import { ChatHeader } from "@/components/ui/chat/ChatHeader";
 import { ChatInput } from "@/components/ui/chat/ChatInput";
 import { PreviewChatMessage, ThinkingChatMessage } from "@/components/ui/chat/ChatMessage";
 import { ChatOverview } from "@/components/ui/chat/ChatOverview";
-import { UseScrollToBottom } from "@/components/ui/chat/UseScrollToBottom";
-import { ChatMessage } from "@/lib/definitions";
-import { getToken } from "@/lib/msal";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { UseChatScroll } from "@/components/ui/chat/UseChatScroll";
+import { ChatMessage, HubEventNames } from "@/lib/definitions";
+import { getConnection } from "@/lib/signalr";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Chat() {
-  const [messagesContainerRef, messagesEndRef] = UseScrollToBottom<HTMLDivElement>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("sessionId");
+
+  const [messagesContainerRef, messagesEndRef, scrollToBottom, preserveScrollOnPrepend] = UseChatScroll<HTMLDivElement>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [webSocket, setWebSocket] = useState<WebSocket | null>(null);
+  const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const limit = 20;
 
-  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null);
+  const sessionIdRef = useRef<string | null>(sessionId);
+  const messageIds = useRef<Set<string>>(new Set());
+  const prevHeightRef = useRef<number | null>(null);
+  const messageHandlerRef = useRef<((chunk: string) => void) | null>(null);
+  const messageStreamEndHandlerRef = useRef<(() => void) | null>(null);
+  const historyHandlerRef = useRef<((history: ChatMessage) => void) | null>(null);
+  const historyStreamEndHandlerRef = useRef<(() => void) | null>(null);
   const isInitializedRef = useRef(false);
+  const batchCountRef = useRef(0);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const cleanupMessageHandler = () => {
-    if (messageHandlerRef.current && webSocket) {
-      if (webSocket.readyState === WebSocket.OPEN) {
-        webSocket.removeEventListener("message", messageHandlerRef.current);
+    if (messageHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.ResponseStreamChunk, messageHandlerRef.current);
       }
       messageHandlerRef.current = null;
     }
-  };
+  }
 
-  const initializeWebSocket = useCallback(async () => {
+  const cleanupHistoryHandler = () => {
+    if (historyHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
+      }
+      historyHandlerRef.current = null;
+    }
+  }
+
+  const cleanupMessageStreamEndHandler = () => {
+    if (messageStreamEndHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.ResponseStreamEnd, messageStreamEndHandlerRef.current);
+      }
+      messageStreamEndHandlerRef.current = null;
+    }
+  }
+
+  const cleanupHistoryStreamEndHandler = () => {
+    if (historyStreamEndHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.HistoryStreamEnd, historyStreamEndHandlerRef.current);
+      }
+      historyStreamEndHandlerRef.current = null;
+    }
+  }
+
+  const messageHandler = useCallback((chunk: string) => {
+    setIsLoading(false);
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.role === "assistant") {
+        // Append chunk to the last assistant message
+        const updatedMessage = {
+          ...lastMessage,
+          content: lastMessage.content + chunk,
+        };
+        return [...prev.slice(0, -1), updatedMessage];
+      } else {
+        // Start a new assistant message
+        const newMessage = {
+          content: chunk,
+          role: "assistant",
+          id: uuidv4(),
+          timestamp: new Date().toISOString(),
+        };
+        return [...prev, newMessage];
+      }
+    });
+  }, []);
+
+  const historyHandler = useCallback((history: ChatMessage) => {
+    batchCountRef.current += 1;
+    if (!messageIds.current.has(history.id)) {
+      messageIds.current.add(history.id);
+      // Only set prevHeightRef for the first message in a batch
+      if (batchCountRef.current === 1) {
+        prevHeightRef.current = messagesContainerRef.current?.scrollHeight ?? 0;
+      }
+      setMessages(prev => [history, ...prev]);
+      setOffset(prev => prev + 1);
+    }
+  }, []);
+
+  const messageStreamEndHandler = () => {
+    cleanupMessageHandler();
+    scrollToBottom();
+  }
+
+  const historyStreamEndHandler = () => {
+    cleanupHistoryHandler();
+    setHasMore(batchCountRef.current === limit); // true if batch was full, false if not
+    batchCountRef.current = 0;
+  }
+
+  const initializeConnection = useCallback(async () => {
     if (isInitializedRef.current) {
-      console.warn("WebSocket already initialized");
+      console.warn("HubConnection already initialized");
       return;
     }
-    isInitializedRef.current = true; // Mark as initialized
+    isInitializedRef.current = true;
     setIsLoading(true);
 
-    const token = await getToken();
-    if (!token) {
-      console.error("Failed to fetch token");
-      setIsLoading(false);
-      return;
+    try {
+      const connection = await getConnection();
+      if (connection.state !== HubConnectionState.Connected) {
+        await connection.start();
+      }
+
+      // Assign handlers to refs for cleanup
+      messageHandlerRef.current = messageHandler;
+      historyHandlerRef.current = historyHandler;
+      messageStreamEndHandlerRef.current = messageStreamEndHandler;
+      historyStreamEndHandlerRef.current = historyStreamEndHandler;
+
+      connection.on(HubEventNames.ResponseStreamChunk, messageHandlerRef.current);
+      connection.on(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
+      connection.on(HubEventNames.ResponseStreamEnd, messageStreamEndHandlerRef.current);
+      connection.on(HubEventNames.HistoryStreamEnd, historyStreamEndHandlerRef.current);
+
+      setHubConnection(connection);
+    } catch (err) {
+      console.error("SignalR connection error:", err);
+      isInitializedRef.current = false;
     }
-    const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
 
-    if (!apiEndpoint) {
-      throw new Error("API endpoint is not defined");
+    setIsLoading(false);
+  }, [messageHandler, historyHandler]);
+
+  const getHistory = useCallback(async () => {
+    if (!sessionIdRef.current || !hubConnection || hubConnection.state !== HubConnectionState.Connected) return;
+    try {
+      await hubConnection.invoke("GetHistory", sessionIdRef.current, offset, limit);
+    } catch (err) {
+      console.error("Failed to get history: ", err);
     }
-    const webSocketEndpoint = apiEndpoint.replace(/^http(s?):\/\//, "ws$1://") + "/stream/chat";
-    const url = new URL(webSocketEndpoint);
-    url.searchParams.append("access_token", encodeURIComponent(token));
-
-    const newWebSocket = new WebSocket(url.toString());
-
-    newWebSocket.onopen = () => setIsLoading(false);
-    newWebSocket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setIsLoading(false);
-      isInitializedRef.current = false; // Allow reinitialization
-    };
-    newWebSocket.onclose = () => {
-      console.warn("WebSocket closed. Attempting to reconnect...");
-      isInitializedRef.current = false; // Allow reinitialization
-      setTimeout(() => initializeWebSocket(), 5000); // Retry after 5 seconds
-    };
-
-    setWebSocket(newWebSocket);
-  }, [setIsLoading, setWebSocket]);
+  }, [hubConnection, offset, limit]);
 
   useEffect(() => {
-    initializeWebSocket();
+    initializeConnection();
+    getHistory();
+    scrollToBottom();
 
     return () => {
-      if (webSocket) {
-        webSocket.close();
+      if (hubConnection) {
+        cleanupMessageHandler();
+        cleanupHistoryHandler();
+        cleanupMessageStreamEndHandler();
+        cleanupHistoryStreamEndHandler();
+        hubConnection.stop();
         isInitializedRef.current = false;
       }
     };
-  }, [initializeWebSocket, webSocket]);
+  }, [initializeConnection, hubConnection]);
+
+  const loadMoreMessages = useCallback(() => {
+    if (!hubConnection || isLoading || !hasMore) return;
+    try {
+      getHistory();
+    } catch (error) {
+      console.error("SignalR send error:", error);
+    }
+  }, [hubConnection, isLoading, hasMore, offset, limit]);
 
   useEffect(() => {
-    // Only run for simulation
-    if (messages.length > 0) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
 
-    const conversation: ChatMessage[] = [
-      { role: "user", content: "Hello, assistant!", id: "1" },
-      { role: "assistant", content: "Hello! How can I help you today?", id: "2" },
-      { role: "user", content: "Can you tell me a joke?", id: "3" },
-      { role: "assistant", content: "Why did the scarecrow win an award? Because he was outstanding in his field!", id: "4" },
-      { role: "user", content: "Haha, that's funny!", id: "5" },
-      { role: "assistant", content: "Glad you liked it! Anything else I can do for you?", id: "6" },
-    ];
-
-    let idx = 0;
-    setIsLoading(true);
-
-    const interval = setInterval(() => {
-      const nextMessage = conversation[idx];
-      if (!nextMessage) {
-        setIsLoading(false);
-        clearInterval(interval);
-        return;
+    function handleScroll() {
+      if (el!.scrollTop < 100 && hasMore && !isLoading) {
+        loadMoreMessages();
       }
-      setMessages((prev) => [...prev, nextMessage]);
-      idx++;
-    }, 1200);
+    }
 
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [messagesContainerRef, hasMore, isLoading, loadMoreMessages]);
 
-  async function handleSubmit(text?: string) {
-    if (!webSocket || webSocket.readyState !== WebSocket.OPEN || isLoading) return;
+  useLayoutEffect(() => {
+    if (prevHeightRef.current && messagesContainerRef.current && isLoading === false) {
+      preserveScrollOnPrepend(prevHeightRef.current);
+      prevHeightRef.current = null;
+    }
+  }, [messages, isLoading, preserveScrollOnPrepend]);
+
+  const handleSubmit = async (text?: string) => {
+    if (!hubConnection || hubConnection.state !== HubConnectionState.Connected || isLoading) return;
+
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = uuidv4();
+      router.replace(`/chat?sessionId=${sessionIdRef.current}`);
+    }
 
     const messageText = text || question;
     setIsLoading(true);
     cleanupMessageHandler();
+    cleanupHistoryHandler();
 
-    const traceId = uuidv4();
-    setMessages((prev) => [...prev, { content: messageText, role: "user", id: traceId }]);
-    webSocket.send(messageText);
+    const optimisticMessage: ChatMessage = {
+      id: uuidv4(),
+      content: messageText,
+      role: "user",
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
     setQuestion("");
+    scrollToBottom();
 
-    const END_TOKEN = "[END]";
+    messageHandlerRef.current = messageHandler;
+    hubConnection.on(HubEventNames.ResponseStreamChunk, messageHandler);
+
     try {
-      const messageHandler = (event: MessageEvent) => {
-        setIsLoading(false);
-        if (event.data.includes(END_TOKEN)) {
-          cleanupMessageHandler();
-          return;
-        }
-
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          const newContent =
-            lastMessage?.role === "assistant" ? lastMessage.content + event.data : event.data;
-
-          const newMessage = { content: newContent, role: "assistant", id: traceId };
-          return lastMessage?.role === "assistant"
-            ? [...prev.slice(0, -1), newMessage]
-            : [...prev, newMessage];
-        });
-      };
-
-      messageHandlerRef.current = messageHandler;
-      webSocket.addEventListener("message", messageHandler);
+      await hubConnection.invoke("SendMessage", messageText, sessionIdRef.current!);
     } catch (error) {
-      console.error("WebSocket error:", error);
       setIsLoading(false);
+      console.error("SignalR send error:", error);
     }
   }
+
+  const filteredMessages = messages.filter(
+    (message) => message.role === "user" || message.role === "assistant"
+  );
 
   return (
     <section aria-label="Chat" className="flex flex-col h-[calc(96dvh-2rem)] bg-background">
@@ -158,16 +258,15 @@ export default function Chat() {
         className="flex flex-col flex-1 min-w-0 gap-6 overflow-y-auto pt-4"
         ref={messagesContainerRef}
       >
-        {messages.length == 0 && <ChatOverview />}
-        {messages.map((message, index) => {
+        {filteredMessages.length === 0 && <ChatOverview />}
+        {filteredMessages.map((message, index) => {
           const isLatestAssistant =
-            message.role === 'assistant' &&
-            // No assistant messages exist after this one
-            !messages.slice(index + 1).some((m) => m.role === 'assistant');
+            message.role === "assistant" &&
+            !filteredMessages.slice(index + 1).some((m) => m.role === "assistant");
 
           return (
             <PreviewChatMessage
-              key={index}
+              key={message.id}
               message={message}
               isLatestAssistant={isLatestAssistant}
             />
@@ -182,6 +281,7 @@ export default function Chat() {
           setQuestion={setQuestion}
           onSubmit={handleSubmit}
           isLoading={isLoading}
+          hideSuggestions={filteredMessages.length > 0}
         />
       </div>
     </section>

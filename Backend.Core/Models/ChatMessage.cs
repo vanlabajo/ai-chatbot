@@ -1,10 +1,19 @@
-﻿namespace Backend.Core.Models
+﻿using System.Text.Json.Serialization;
+
+namespace Backend.Core.Models
 {
     public class ChatMessage
     {
-        public string ChatMessageId { get; } = Guid.NewGuid().ToString();
+        public string Id { get; } = Guid.NewGuid().ToString();
+
+        [JsonIgnore]
         public required ChatRole Role { get; set; }
+
+        [JsonPropertyName("role")]
+        public string RoleName => Role.ToString();
+
         public required string Content { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
 
     public class ChatRole

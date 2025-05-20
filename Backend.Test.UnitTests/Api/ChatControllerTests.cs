@@ -223,11 +223,11 @@ namespace Backend.Test.UnitTests.Api
 
             Assert.NotNull(cachedSessions);
             Assert.Single(cachedSessions);
-            Assert.Equal(4, cachedSessions[0].Messages.Count);
-            Assert.Equal("001", cachedSessions[0].SessionId);
+            Assert.Equal(7, cachedSessions[0].Messages.Count);
+            Assert.Equal("001", cachedSessions[0].Id);
             Assert.Equal("This is the Test Subject!", cachedSessions[0].Subject);
-            Assert.Equal("Hello", cachedSessions[0].Messages[2].Content);
-            Assert.Equal("Hello, World!", cachedSessions[0].Messages[3].Content);
+            Assert.Equal("Hello", cachedSessions[0].Messages[5].Content);
+            Assert.Equal("Hello, World!", cachedSessions[0].Messages[6].Content);
         }
 
         [Fact]
@@ -258,7 +258,7 @@ namespace Backend.Test.UnitTests.Api
             };
             var existingSession = new ChatSession
             {
-                SessionId = "001",
+                Id = "001",
                 Messages =
                 [
                     new() { Role = ChatRole.User, Content = "Hello" },

@@ -52,6 +52,25 @@ namespace Backend.Api.Controllers
             return Ok(new ChatResponse { Response = assistantResponse });
         }
 
+        [HttpGet("sessions")]
+        [ProducesResponseType(typeof(List<ChatSession>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetSessions(CancellationToken cancellationToken)
+        {
+            var user = User.GetNameIdentifierId();
+            if (user == null)
+                return BadRequest("User identity is not available.");
+            var sessions = await GetOrCreateSessions(user, cancellationToken);
+            // Remove messages from the session objects before sending them to the client
+            var sessionList = sessions.Select(s => new ChatSession
+            {
+                Id = s.Id,
+                Subject = s.Subject,
+                Timestamp = s.Timestamp
+            }).ToList();
+            return Ok(sessionList);
+        }
+
         private async Task<List<ChatSession>> GetOrCreateSessions(string user, CancellationToken cancellationToken)
         {
             var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
@@ -61,14 +80,14 @@ namespace Backend.Api.Controllers
         private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string? sessionId)
         {
             var session = !string.IsNullOrEmpty(sessionId)
-                ? sessions.FirstOrDefault(s => s.SessionId == sessionId)
+                ? sessions.FirstOrDefault(s => s.Id == sessionId)
                 : null;
 
             if (session == null)
             {
                 session = new ChatSession
                 {
-                    SessionId = sessionId ?? Guid.NewGuid().ToString(),
+                    Id = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [
                         new() { Role = ChatRole.System, Content = "You are a helpful assistant, providing informative and concise answers to user queries. Your goal is to be informative, respectful, and helpful." },

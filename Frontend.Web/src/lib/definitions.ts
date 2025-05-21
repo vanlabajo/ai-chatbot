@@ -13,4 +13,12 @@ export const HubEventNames = {
   HistoryStreamStart: "HistoryStreamStart",
   HistoryStreamChunk: "HistoryStreamChunk",
   HistoryStreamEnd: "HistoryStreamEnd",
+  SessionUpdate: "SessionUpdate",
 } as const;
+
+export interface ChatSession {
+  id: string;
+  title?: string | null;
+  timestamp: string;
+  messages: ChatMessage[];
+}

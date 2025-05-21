@@ -38,11 +38,17 @@ namespace Backend.Api.Hubs
             var aiResponse = aiResponseBuilder.ToString();
             session.Messages.Add(new ChatMessage { Role = ChatRole.Assistant, Content = aiResponse });
 
-            // Generate subject if missing
-            if (string.IsNullOrEmpty(session.Subject))
+            // Generate title if missing
+            if (string.IsNullOrEmpty(session.Title))
             {
-                session.Subject = await GenerateConversationSubject(session.Messages);
-                await Clients.Caller.SendAsync(HubEventNames.SessionSubjectUpdated, session.Id, session.Subject);
+                session.Title = await GenerateConversationTitle(session.Messages);
+                var sessionUpdate = new ChatSession
+                {
+                    Id = session.Id,
+                    Title = session.Title,
+                    Timestamp = session.Timestamp
+                };
+                await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
             }
 
             await Clients.Caller.SendAsync(HubEventNames.ResponseStreamEnd);
@@ -143,15 +149,15 @@ namespace Backend.Api.Hubs
             return session;
         }
 
-        private async Task<string> GenerateConversationSubject(IEnumerable<ChatMessage> messages)
+        private async Task<string> GenerateConversationTitle(IEnumerable<ChatMessage> messages)
         {
-            var subjectPrompt = new ChatMessage
+            var titlePrompt = new ChatMessage
             {
                 Role = ChatRole.User,
-                Content = "What is the subject of this conversation? Please respond with at most three words."
+                Content = "What is the title of this conversation? Please respond with at most four words. Do not include quotation marks or punctuation around the title."
             };
 
-            var messagesWithPrompt = messages.Append(subjectPrompt).ToList();
+            var messagesWithPrompt = messages.Append(titlePrompt).ToList();
             var builder = new StringBuilder();
 
             await foreach (var response in _openAiService.GetChatResponseStreamingAsync(messagesWithPrompt))

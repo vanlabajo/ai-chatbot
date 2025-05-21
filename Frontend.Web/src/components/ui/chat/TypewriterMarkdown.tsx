@@ -71,7 +71,7 @@ export const TypewriterMarkdown = ({
 
   return (
     <motion.div
-      className="relative"
+      className="relative pr-14 pt-2"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -81,7 +81,7 @@ export const TypewriterMarkdown = ({
       {isTyping && (
         <button
           onClick={resetTyping}
-          className="absolute top-0 right-0 text-xs text-blue-500 hover:underline"
+          className="absolute top-0 right-2 text-xs text-blue-500 hover:underline"
         >
           Skip
         </button>

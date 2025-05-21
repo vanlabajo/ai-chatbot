@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import {
   Sidebar,
@@ -11,133 +12,124 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/Sidebar";
-import { getToken } from "@/lib/msal";
-import { ChatSession } from "@/lib/types";
+import { getSessions } from "@/lib/api";
+import { ChatSession, HubEventNames } from "@/lib/definitions";
+import { getConnection } from "@/lib/signalr";
 import { Logo } from "@/public/Logo";
-import { ComponentProps, useEffect, useRef, useState } from "react";
+import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+import { PencilLine } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ComponentProps, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingStatus } from "./LoadingStatus";
 import { UserProfile } from "./UserProfile";
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("sessionId");
+
   const [navigation, setNavigation] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const sessionIds = useRef<Set<string>>(new Set());
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const cancelledRef = useRef(false);
+  const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    cancelledRef.current = false;
+  const isInitializedRef = useRef(false);
+  const sessionUpdateHandlerRef = useRef<((session: ChatSession) => void) | null>(null);
 
-    async function startEventSource() {
-      const token = await getToken();
-      if (!token) {
-        console.error("Failed to fetch token");
-        return;
+  const cleanupSessionUpdateHandler = () => {
+    if (sessionUpdateHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.SessionUpdate, sessionUpdateHandlerRef.current);
       }
-      const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
-      if (!apiEndpoint) {
-        throw new Error("API endpoint is not defined");
-      }
-      const url = new URL(apiEndpoint + "/stream/chat/sessions");
-      url.searchParams.append("access_token", encodeURIComponent(token));
-
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-
-      const es = new EventSource(url.toString());
-      eventSourceRef.current = es;
-
-      es.onmessage = (event) => {
-        if (cancelledRef.current) return;
-        try {
-          const session: ChatSession = JSON.parse(event.data);
-          if (!sessionIds.current.has(session.sessionId)) {
-            sessionIds.current.add(session.sessionId);
-            setNavigation((prev) => {
-              const updated = [...prev, session];
-              // If only one session, set it as active
-              if (updated.length === 1) {
-                setActiveSessionId(session.sessionId);
-              }
-              return updated;
-            });
-          }
-        } catch (error) {
-          console.error("Failed to parse event data:", error);
-        }
-      };
-
-      es.onerror = (error) => {
-        if (cancelledRef.current) return;
-        console.error("EventSource error:", error);
-      };
+      sessionUpdateHandlerRef.current = null;
     }
+  };
 
-    function simulateSessionStream(onSession: (session: ChatSession) => void) {
-      let count = 0;
-      const interval = setInterval(() => {
-        count++;
-        const session: ChatSession = {
-          sessionId: `session-${count}`,
-          subject: `Simulated Subject ${count}`,
-          timestamp: new Date().toISOString(),
-          messages: [],
-        };
-        onSession(session);
-
-        // Optionally, simulate an update to an existing session
-        if (count === 3) {
-          setTimeout(() => {
-            onSession({
-              sessionId: "session-2",
-              subject: "Simulated Subject 2 (updated)",
-              timestamp: new Date().toISOString(),
-              messages: [],
-            });
-          }, 1500);
-        }
-
-        // Stop after 5 sessions for demo
-        if (count >= 5) clearInterval(interval);
-      }, 2000);
-
-      return () => clearInterval(interval);
-    }
-
-    startEventSource();
-    // const cleanup = simulateSessionStream((session) => {
-    //   setNavigation((prev) => {
-    //     const existingIndex = prev.findIndex(s => s.sessionId === session.sessionId);
-    //     if (existingIndex === -1) {
-    //       // New session
-    //       const updated = [...prev, session];
-    //       if (updated.length === 1) setActiveSessionId(session.sessionId);
-    //       return updated;
-    //     } else {
-    //       // Update existing session
-    //       const updated = [...prev];
-    //       updated[existingIndex] = { ...prev[existingIndex], ...session };
-    //       return updated;
-    //     }
-    //   });
-    // });
-
-    return () => {
-      cancelledRef.current = true;
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+  const sessionUpdateHandler = useCallback((updatedSession: ChatSession) => {
+    setNavigation(prev => {
+      const exists = prev.some(session => session.id === updatedSession.id);
+      if (exists) {
+        return prev.map(session =>
+          session.id === updatedSession.id
+            ? { ...session, subject: updatedSession.title }
+            : session
+        );
+      } else {
+        return [updatedSession, ...prev];
       }
-      // cleanup && cleanup();
-    };
+    });
+  }, []);
+
+  const initialize = useCallback(async () => {
+    try {
+      const sessions = await getSessions();
+      setNavigation(sessions);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    }
   }, []);
 
   useEffect(() => {
-    if (navigation.length === 1) {
-      setActiveSessionId(navigation[0].sessionId);
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    const found = navigation.find(session => session.id === sessionId);
+    setActiveSessionId(found ? found.id : null);
+  }, [sessionId, navigation]);
+
+  const initializeConnection = useCallback(async () => {
+    if (isInitializedRef.current) {
+      console.warn("HubConnection already initialized");
+      return;
     }
-  }, [navigation]);
+    isInitializedRef.current = true;
+
+    try {
+      const connection = await getConnection();
+      if (connection.state !== HubConnectionState.Connected) {
+        await connection.start();
+      }
+
+      sessionUpdateHandlerRef.current = sessionUpdateHandler;
+      connection.on(HubEventNames.SessionUpdate, sessionUpdateHandlerRef.current);
+
+      setHubConnection(connection);
+    } catch (err) {
+      console.error("SignalR connection error:", err);
+      isInitializedRef.current = false;
+    }
+  }, [sessionUpdateHandler]);
+
+  useEffect(() => {
+    initializeConnection();
+
+    return () => {
+      if (hubConnection) {
+        cleanupSessionUpdateHandler();
+        hubConnection.stop();
+        isInitializedRef.current = false;
+      }
+    };
+  }, [initializeConnection, hubConnection]);
+
+  const handleClick = (sessionId: string) => {
+    router.replace(`/chat?sessionId=${sessionId}`);
+  };
+
+  const handleNewChat = () => {
+    router.replace("/chat");
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const filteredNavigation = navigation.filter(session =>
+    (session.title ?? "")
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
@@ -154,6 +146,17 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
               AI Development Kickstart
             </span>
           </div>
+          <span className="flex size-6 ml-auto mb-auto items-center justify-center rounded-md bg-white dark:bg-gray-900 dark:ring-gray-800">
+            <Button
+              variant="secondary"
+              className="h-6 w-6 p-0"
+              title="New chat"
+              onClick={handleNewChat}
+            >
+              <PencilLine className="w-4" />
+              <span className="sr-only">New chat</span>
+            </Button>
+          </span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -163,21 +166,30 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
               type="search"
               placeholder="Search sessions..."
               className="[&>input]:sm:py-1.5"
+              value={searchTerm ?? ""}
+              onChange={handleSearch}
             />
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup className="pt-0">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {navigation.map((session: ChatSession) => (
-                <SidebarMenuItem key={session.sessionId}>
+              {filteredNavigation.map((session: ChatSession) => (
+                <SidebarMenuItem
+                  key={session.id}
+                  className="flex items-center"
+                >
                   <SidebarLink
-                    href={`#${session.sessionId}`}
-                    isActive={session.sessionId === activeSessionId}
-                    className="data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
-                    onClick={() => setActiveSessionId(session.sessionId)}
+                    href={`#${session.id}`}
+                    isActive={session.id === activeSessionId}
+                    className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                    title={session.title ?? ""}
+                    onClick={() => handleClick(session.id)}
                   >
-                    {session.subject || <LoadingStatus />}
+                    <span className="flex w-full items-center justify-between">
+                      <span className="truncate max-w-[12rem] block">{session.title}</span>
+                      {!session.title && <LoadingStatus className="size-5" />}
+                    </span>
                   </SidebarLink>
                 </SidebarMenuItem>
               ))}

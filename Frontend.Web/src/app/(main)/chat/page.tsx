@@ -35,9 +35,58 @@ export default function Chat() {
   const isInitializedRef = useRef(false);
   const batchCountRef = useRef(0);
 
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
+  // -- Handlers --
+
+  const messageHandler = useCallback((chunk: string) => {
+    setIsLoading(false);
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.role === "assistant") {
+        // Append chunk to the last assistant message
+        const updatedMessage = {
+          ...lastMessage,
+          content: lastMessage.content + chunk,
+        };
+        return [...prev.slice(0, -1), updatedMessage];
+      } else {
+        // Start a new assistant message
+        const newMessage = {
+          content: chunk,
+          role: "assistant",
+          id: uuidv4(),
+          timestamp: new Date().toISOString(),
+        };
+        return [...prev, newMessage];
+      }
+    });
+  }, []);
+
+  const historyHandler = useCallback((history: ChatMessage) => {
+    batchCountRef.current += 1;
+    if (!messageIds.current.has(history.id)) {
+      messageIds.current.add(history.id);
+      // Only set prevHeightRef for the first message in a batch
+      if (batchCountRef.current === 1) {
+        prevHeightRef.current = messagesContainerRef.current?.scrollHeight ?? 0;
+      }
+      setMessages(prev => [history, ...prev]);
+      setOffset(prev => prev + 1);
+      scrollToBottom();
+    }
+  }, []);
+
+  const messageStreamEndHandler = () => {
+    cleanupMessageHandler();
+    scrollToBottom();
+  }
+
+  const historyStreamEndHandler = () => {
+    cleanupHistoryHandler();
+    setHasMore(batchCountRef.current === limit); // true if batch was full, false if not
+    batchCountRef.current = 0;
+  }
+
+  // -- Cleanup Handlers --
 
   const cleanupMessageHandler = () => {
     if (messageHandlerRef.current && hubConnection) {
@@ -75,53 +124,7 @@ export default function Chat() {
     }
   }
 
-  const messageHandler = useCallback((chunk: string) => {
-    setIsLoading(false);
-    setMessages((prev) => {
-      const lastMessage = prev[prev.length - 1];
-      if (lastMessage?.role === "assistant") {
-        // Append chunk to the last assistant message
-        const updatedMessage = {
-          ...lastMessage,
-          content: lastMessage.content + chunk,
-        };
-        return [...prev.slice(0, -1), updatedMessage];
-      } else {
-        // Start a new assistant message
-        const newMessage = {
-          content: chunk,
-          role: "assistant",
-          id: uuidv4(),
-          timestamp: new Date().toISOString(),
-        };
-        return [...prev, newMessage];
-      }
-    });
-  }, []);
-
-  const historyHandler = useCallback((history: ChatMessage) => {
-    batchCountRef.current += 1;
-    if (!messageIds.current.has(history.id)) {
-      messageIds.current.add(history.id);
-      // Only set prevHeightRef for the first message in a batch
-      if (batchCountRef.current === 1) {
-        prevHeightRef.current = messagesContainerRef.current?.scrollHeight ?? 0;
-      }
-      setMessages(prev => [history, ...prev]);
-      setOffset(prev => prev + 1);
-    }
-  }, []);
-
-  const messageStreamEndHandler = () => {
-    cleanupMessageHandler();
-    scrollToBottom();
-  }
-
-  const historyStreamEndHandler = () => {
-    cleanupHistoryHandler();
-    setHasMore(batchCountRef.current === limit); // true if batch was full, false if not
-    batchCountRef.current = 0;
-  }
+  // -- Connection Initialization --
 
   const initializeConnection = useCallback(async () => {
     if (isInitializedRef.current) {
@@ -136,6 +139,11 @@ export default function Chat() {
       if (connection.state !== HubConnectionState.Connected) {
         await connection.start();
       }
+
+      cleanupMessageHandler();
+      cleanupHistoryHandler();
+      cleanupMessageStreamEndHandler();
+      cleanupHistoryStreamEndHandler();
 
       // Assign handlers to refs for cleanup
       messageHandlerRef.current = messageHandler;
@@ -155,57 +163,66 @@ export default function Chat() {
     }
 
     setIsLoading(false);
-  }, [messageHandler, historyHandler]);
-
-  const getHistory = useCallback(async () => {
-    if (!sessionIdRef.current || !hubConnection || hubConnection.state !== HubConnectionState.Connected) return;
-    try {
-      await hubConnection.invoke("GetHistory", sessionIdRef.current, offset, limit);
-    } catch (err) {
-      console.error("Failed to get history: ", err);
-    }
-  }, [hubConnection, offset, limit]);
+  }, [sessionId]);
 
   useEffect(() => {
     initializeConnection();
-    getHistory();
-    scrollToBottom();
 
     return () => {
       if (hubConnection) {
-        cleanupMessageHandler();
-        cleanupHistoryHandler();
-        cleanupMessageStreamEndHandler();
-        cleanupHistoryStreamEndHandler();
         hubConnection.stop();
         isInitializedRef.current = false;
       }
     };
-  }, [initializeConnection, hubConnection]);
+  }, [hubConnection]);
 
-  const loadMoreMessages = useCallback(() => {
-    if (!hubConnection || isLoading || !hasMore) return;
-    try {
-      getHistory();
-    } catch (error) {
-      console.error("SignalR send error:", error);
+  // --- Reset state on session change ---
+  useEffect(() => {
+    const currentSessionIdRef = sessionIdRef.current;
+    sessionIdRef.current = sessionId;
+    if (currentSessionIdRef !== sessionId) {
+      setMessages([]);
+      messageIds.current.clear();
+      setOffset(0);
+
+      // Fetch history when sessionId changes
+      if (
+        sessionId &&
+        hubConnection &&
+        hubConnection.state === HubConnectionState.Connected
+      ) {
+        cleanupHistoryHandler();
+        historyHandlerRef.current = historyHandler;
+        hubConnection.on(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
+        hubConnection.invoke("GetHistory", sessionId, 0, limit).catch(err => {
+          console.error("Failed to get history: ", err);
+        });
+      }
     }
-  }, [hubConnection, isLoading, hasMore, offset, limit]);
+  }, [sessionId]);
 
+  // --- Infinite scroll: load more messages on scroll up ---
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-
     function handleScroll() {
       if (el!.scrollTop < 100 && hasMore && !isLoading) {
-        loadMoreMessages();
+        if (
+          sessionId &&
+          hubConnection &&
+          hubConnection.state === HubConnectionState.Connected
+        ) {
+          hubConnection.invoke("GetHistory", sessionId, offset, limit).catch(err => {
+            console.error("Failed to get history: ", err);
+          });
+        }
       }
     }
-
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [messagesContainerRef, hasMore, isLoading, loadMoreMessages]);
+  }, [messagesContainerRef, hasMore, isLoading, sessionId, hubConnection, offset, limit]);
 
+  // --- Preserve scroll position on prepend ---
   useLayoutEffect(() => {
     if (prevHeightRef.current && messagesContainerRef.current && isLoading === false) {
       preserveScrollOnPrepend(prevHeightRef.current);
@@ -213,6 +230,7 @@ export default function Chat() {
     }
   }, [messages, isLoading, preserveScrollOnPrepend]);
 
+  // --- Handle user submitting a message ---
   const handleSubmit = async (text?: string) => {
     if (!hubConnection || hubConnection.state !== HubConnectionState.Connected || isLoading) return;
 
@@ -224,7 +242,6 @@ export default function Chat() {
     const messageText = text || question;
     setIsLoading(true);
     cleanupMessageHandler();
-    cleanupHistoryHandler();
 
     const optimisticMessage: ChatMessage = {
       id: uuidv4(),
@@ -245,7 +262,7 @@ export default function Chat() {
       setIsLoading(false);
       console.error("SignalR send error:", error);
     }
-  }
+  };
 
   const filteredMessages = messages.filter(
     (message) => message.role === "user" || message.role === "assistant"

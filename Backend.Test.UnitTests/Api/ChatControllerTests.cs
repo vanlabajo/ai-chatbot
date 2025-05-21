@@ -225,7 +225,7 @@ namespace Backend.Test.UnitTests.Api
             Assert.Single(cachedSessions);
             Assert.Equal(7, cachedSessions[0].Messages.Count);
             Assert.Equal("001", cachedSessions[0].Id);
-            Assert.Equal("This is the Test Subject!", cachedSessions[0].Subject);
+            Assert.Equal("This is the Test Title!", cachedSessions[0].Title);
             Assert.Equal("Hello", cachedSessions[0].Messages[5].Content);
             Assert.Equal("Hello, World!", cachedSessions[0].Messages[6].Content);
         }

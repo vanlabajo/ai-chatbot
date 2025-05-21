@@ -32,7 +32,7 @@ export const PreviewChatMessage = ({ message, isLatestAssistant = false }: { mes
           {message.content && (
             <div className="flex flex-col gap-4 text-left">
               {message.role === "assistant" ? (
-                <TypewriterMarkdown text={message.content} isActive={isLatestAssistant} typingMode="char" />
+                <TypewriterMarkdown text={message.content} isActive={isLatestAssistant} />
               ) : (
                 <Markdown>{message.content}</Markdown>
               )}

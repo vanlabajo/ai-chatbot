@@ -5,11 +5,10 @@
         public const string ResponseStreamStart = "ResponseStreamStart";
         public const string ResponseStreamChunk = "ResponseStreamChunk";
         public const string ResponseStreamEnd = "ResponseStreamEnd";
-        public const string SessionSubjectUpdated = "SessionSubjectUpdated";
-        public const string SessionsUpdated = "SessionsUpdated"; // Remove this later and move to a Rest API
         public const string HistoryStreamStart = "HistoryStreamStart";
         public const string HistoryStreamChunk = "HistoryStreamChunk";
         public const string HistoryStreamEnd = "HistoryStreamEnd";
+        public const string SessionUpdate = "SessionUpdate";
     }
 
 }

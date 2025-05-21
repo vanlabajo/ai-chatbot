@@ -40,10 +40,10 @@ namespace Backend.Api.Controllers
             var assistantResponse = await _openAiService.GetChatResponseAsync(session.Messages);
             session.Messages.Add(new ChatMessage { Role = ChatRole.Assistant, Content = assistantResponse });
 
-            // Generate a subject for the session if it doesn't already exist
-            if (string.IsNullOrEmpty(session.Subject))
+            // Generate a title for the session if it doesn't already exist
+            if (string.IsNullOrEmpty(session.Title))
             {
-                session.Subject = await GenerateConversationSubject(session.Messages, cancellationToken);
+                session.Title = await GenerateConversationTitle(session.Messages, cancellationToken);
             }
 
             // Save the updated sessions list back to the cache
@@ -65,7 +65,7 @@ namespace Backend.Api.Controllers
             var sessionList = sessions.Select(s => new ChatSession
             {
                 Id = s.Id,
-                Subject = s.Subject,
+                Title = s.Title,
                 Timestamp = s.Timestamp
             }).ToList();
             return Ok(sessionList);
@@ -103,18 +103,18 @@ namespace Backend.Api.Controllers
             return session;
         }
 
-        private async Task<string> GenerateConversationSubject(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
+        private async Task<string> GenerateConversationTitle(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
         {
-            var subjectRequest = new ChatMessage
+            var titlePrompt = new ChatMessage
             {
                 Role = ChatRole.User,
-                Content = "What is the subject of this conversation? Please respond with at most three words."
+                Content = "What is the title of this conversation? Please respond with at most four words. Do not include quotation marks or punctuation around the title."
             };
 
-            var messagesWithSubjectRequest = messages.Append(subjectRequest).ToList();
+            var messagesWithPrompt = messages.Append(titlePrompt).ToList();
             var subjectBuilder = new StringBuilder();
 
-            await foreach (var response in _openAiService.GetChatResponseStreamingAsync(messagesWithSubjectRequest))
+            await foreach (var response in _openAiService.GetChatResponseStreamingAsync(messagesWithPrompt))
             {
                 subjectBuilder.Append(response);
             }

@@ -7,58 +7,73 @@ type TypingMode = "char" | "word";
 export const TypewriterMarkdown = ({
   text,
   isActive,
-  typingMode = "word",
+  onTypingFinished,
+  typingMode = "word"
 }: {
   text: string;
   isActive: boolean;
+  onTypingFinished?: () => void;
   typingMode?: TypingMode;
 }) => {
   const [visibleText, setVisibleText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
-  const unitQueue = useRef<string[]>([]);
+  const prevTextRef = useRef<string>("");
+
+  // Helper to get the new part of the text
+  const getNewUnits = (oldText: string, newText: string, mode: TypingMode) => {
+    if (mode === "word") {
+      const oldUnits = oldText.split(/(\s+)/);
+      const newUnits = newText.split(/(\s+)/);
+      return newUnits.slice(oldUnits.length);
+    } else {
+      return newText.slice(oldText.length).split("");
+    }
+  }
 
   const resetTyping = () => {
     if (timeoutId.current) clearTimeout(timeoutId.current);
-    unitQueue.current = [];
     setVisibleText(text);
     setIsTyping(false);
+    prevTextRef.current = text;
+    onTypingFinished?.();
   };
 
   useEffect(() => {
     if (!isActive) {
-      // If not active, show full text and stop typing
       resetTyping();
       return;
     }
 
-    const units = typingMode === "word" ? text.split(/(\s+)/) : text.split("");
+    const oldText = prevTextRef.current;
+    // If this is the first chunk or oldText is empty, animate the whole text
+    const isFirstChunk = oldText.length === 0;
+    const newUnits = isFirstChunk
+      ? (typingMode === "word" ? text.split(/(\s+)/) : text.split(""))
+      : getNewUnits(oldText, text, typingMode);
 
-    unitQueue.current = units;
-    setVisibleText("");
+    let currentText = isFirstChunk ? "" : oldText;
     setIsTyping(true);
 
     const typeNext = () => {
-      if (unitQueue.current.length === 0) {
-        // Finished typing
+      if (newUnits.length === 0) {
         setIsTyping(false);
-        setVisibleText(text); // Make sure full text is visible
+        setVisibleText(text);
+        prevTextRef.current = text;
+        onTypingFinished?.();
         return;
       }
-
-      const nextUnit = unitQueue.current.shift()!;
-      setVisibleText((prev) => prev + nextUnit);
+      const nextUnit = newUnits.shift()!;
+      currentText += nextUnit;
+      setVisibleText(currentText);
 
       // Delay settings
       const trimmed = nextUnit.trim();
-      // Faster typing for word mode (feel less sluggish)
       const baseDelay = typingMode === "word" ? 30 : 40;
       let delay = Math.random() * 50 + baseDelay;
-
       if (/[.,!?]$/.test(trimmed)) {
         delay += 150;
       }
-
       timeoutId.current = setTimeout(typeNext, delay);
     };
 
@@ -67,7 +82,7 @@ export const TypewriterMarkdown = ({
     return () => {
       if (timeoutId.current) clearTimeout(timeoutId.current);
     };
-  }, [text, isActive, typingMode]);
+  }, [text, isActive, typingMode, onTypingFinished]);
 
   return (
     <motion.div

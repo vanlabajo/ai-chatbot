@@ -6,7 +6,15 @@ import { ChatMessageActions } from './ChatMessageActions';
 import { Markdown } from './Markdown';
 import { TypewriterMarkdown } from './TypewriterMarkdown';
 
-export const PreviewChatMessage = ({ message, isLatestAssistant = false }: { message: ChatMessage; isLatestAssistant?: boolean }) => {
+export const PreviewChatMessage = ({
+  message,
+  activateTypewritingEffect = false,
+  onTypewriterFinished
+}: {
+  message: ChatMessage;
+  activateTypewritingEffect?: boolean;
+  onTypewriterFinished?: () => void;
+}) => {
   if (message.role !== 'assistant' && message.role !== 'user') return;
 
   return (
@@ -32,7 +40,11 @@ export const PreviewChatMessage = ({ message, isLatestAssistant = false }: { mes
           {message.content && (
             <div className="flex flex-col gap-4 text-left">
               {message.role === "assistant" ? (
-                <TypewriterMarkdown text={message.content} isActive={isLatestAssistant} />
+                <TypewriterMarkdown
+                  text={message.content}
+                  isActive={activateTypewritingEffect}
+                  onTypingFinished={onTypewriterFinished}
+                />
               ) : (
                 <Markdown>{message.content}</Markdown>
               )}

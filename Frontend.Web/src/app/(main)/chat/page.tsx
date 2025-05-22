@@ -8,7 +8,7 @@ import { ChatMessage, HubEventNames } from "@/lib/definitions";
 import { getConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Chat() {
@@ -23,6 +23,7 @@ export default function Chat() {
   const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
+  const [lastAnimatedAssistantId, setLastAnimatedAssistantId] = useState<string | null>(null);
   const limit = 20;
 
   const sessionIdRef = useRef<string | null>(sessionId);
@@ -71,7 +72,6 @@ export default function Chat() {
       }
       setMessages(prev => [history, ...prev]);
       setOffset(prev => prev + 1);
-      scrollToBottom();
     }
   }, []);
 
@@ -184,22 +184,25 @@ export default function Chat() {
       setMessages([]);
       messageIds.current.clear();
       setOffset(0);
-
-      // Fetch history when sessionId changes
-      if (
-        sessionId &&
-        hubConnection &&
-        hubConnection.state === HubConnectionState.Connected
-      ) {
-        cleanupHistoryHandler();
-        historyHandlerRef.current = historyHandler;
-        hubConnection.on(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
-        hubConnection.invoke("GetHistory", sessionId, 0, limit).catch(err => {
-          console.error("Failed to get history: ", err);
-        });
-      }
     }
   }, [sessionId]);
+
+  // --- Load history if there is a sessionId, connection, and no messages loaded yet ---
+  useEffect(() => {
+    if (
+      sessionId &&
+      hubConnection &&
+      hubConnection.state === HubConnectionState.Connected &&
+      messages.length === 0
+    ) {
+      cleanupHistoryHandler();
+      historyHandlerRef.current = historyHandler;
+      hubConnection.on(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
+      hubConnection.invoke("GetHistory", sessionId, offset, limit).catch(err => {
+        console.error("Failed to get history: ", err);
+      });
+    }
+  }, [sessionId, hubConnection, messages.length]);
 
   // --- Infinite scroll: load more messages on scroll up ---
   useEffect(() => {
@@ -264,9 +267,17 @@ export default function Chat() {
     }
   };
 
-  const filteredMessages = messages.filter(
-    (message) => message.role === "user" || message.role === "assistant"
+  const filteredMessages = useMemo(
+    () => messages.filter(
+      (message) => message.role === "user" || message.role === "assistant"
+    ),
+    [messages]
   );
+
+  const latestAssistantId = useMemo(() => {
+    const last = [...filteredMessages].reverse().find(m => m.role === "assistant");
+    return last?.id ?? null;
+  }, [filteredMessages]);
 
   return (
     <section aria-label="Chat" className="flex flex-col h-[calc(96dvh-2rem)] bg-background">
@@ -277,15 +288,20 @@ export default function Chat() {
       >
         {filteredMessages.length === 0 && <ChatOverview />}
         {filteredMessages.map((message, index) => {
-          const isLatestAssistant =
+          const shouldTypewrite =
             message.role === "assistant" &&
-            !filteredMessages.slice(index + 1).some((m) => m.role === "assistant");
+            message.id === latestAssistantId &&
+            message.id !== lastAnimatedAssistantId;
 
           return (
             <PreviewChatMessage
               key={message.id}
               message={message}
-              isLatestAssistant={isLatestAssistant}
+              activateTypewritingEffect={shouldTypewrite}
+              onTypewriterFinished={() => {
+                setLastAnimatedAssistantId(message.id);
+                scrollToBottom();
+              }}
             />
           );
         })}

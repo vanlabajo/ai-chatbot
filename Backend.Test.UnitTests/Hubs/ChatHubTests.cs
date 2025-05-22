@@ -126,20 +126,20 @@ namespace Backend.Test.UnitTests.Hubs
             foreach (var chunk in fullResponse.Select(s => s.ToString()))
             {
                 callerMock.Verify(c =>
-                    c.SendCoreAsync("StreamChunk",
+                    c.SendCoreAsync(HubEventNames.ResponseStreamChunk,
                         It.Is<object[]>(args => args.Length == 1 && (string)args[0] == chunk),
                         It.IsAny<CancellationToken>()),
                     Times.AtLeastOnce);
             }
 
             callerMock.Verify(c =>
-                c.SendCoreAsync("SubjectUpdated",
+                c.SendCoreAsync(HubEventNames.SessionUpdate,
                     It.Is<object[]>(args =>
-                        args.Length == 2 &&
-                        (string)args[0] == "sessionId" &&
-                        (string)args[1] == "AI response"),
+                        args.Length == 1 &&
+                        args[0] is ChatSession &&
+                        ((ChatSession)args[0]).Id == sessionId),
                     It.IsAny<CancellationToken>()),
-                Times.Once);
+                Times.Exactly(2));
         }
 
         [Fact]
@@ -197,85 +197,6 @@ namespace Backend.Test.UnitTests.Hubs
             // Assert
             cacheServiceMock.Verify(s =>
                 s.SetAsync(It.Is<string>(key => key == "session-user-123"), It.Is<List<ChatSession>>(s => s.Count == 1), null, default),
-                Times.Once);
-        }
-
-        [Fact]
-        public async Task GetSessionList_ThrowsBadRequest_WhenNoClaimsPrincipal()
-        {
-            // Arrange
-            var contextMock = new Mock<HubCallerContext>();
-            var openAiServiceMock = new Mock<IOpenAIService>();
-            var cacheServiceMock = new Mock<ICacheService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
-            {
-                Context = contextMock.Object,
-                Clients = Mock.Of<IHubCallerClients>(c =>
-                    c.Caller == Mock.Of<IClientProxy>() &&
-                    c.All == Mock.Of<IClientProxy>()
-                )
-            };
-            // Act
-            var exception = await Assert.ThrowsAsync<BadRequestException>(() => chatHub.GetSessionList());
-            // Assert
-            Assert.Equal("User identity is not available.", exception.Message);
-        }
-
-        [Fact]
-        public async Task GetSessionList_ShouldStreamSessions()
-        {
-            // Arrange
-            var openAiServiceMock = new Mock<IOpenAIService>();
-            var cacheServiceMock = new Mock<ICacheService>();
-
-            var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "user-123") };
-            var identity = new ClaimsIdentity(claims, "TestAuthType");
-            var claimsPrincipal = new ClaimsPrincipal(identity);
-
-            var contextMock = new Mock<HubCallerContext>();
-            contextMock.Setup(c => c.User).Returns(claimsPrincipal);
-            contextMock.Setup(c => c.ConnectionId).Returns("conn-123");
-            contextMock.Setup(c => c.UserIdentifier).Returns("user-123");
-
-            var clientsMock = new Mock<IHubCallerClients>();
-            var callerMock = new Mock<ISingleClientProxy>();
-
-            clientsMock.Setup(c => c.Caller).Returns(callerMock.Object);
-            clientsMock.Setup(c => c.All).Returns(callerMock.Object);
-
-            callerMock
-                .Setup(c => c.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
-
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
-            {
-                Context = contextMock.Object,
-                Clients = clientsMock.Object
-            };
-
-            var sessionId = "sessionId";
-            var message = "Hello, AI!";
-            var session = new ChatSession
-            {
-                Id = sessionId,
-                Messages =
-                [
-                    new ChatMessage { Role = ChatRole.User, Content = message }
-                ]
-            };
-            var sessions = new List<ChatSession> { session };
-            cacheServiceMock
-                .Setup(s => s.GetAsync<List<ChatSession>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(sessions);
-
-            // Act
-            await chatHub.GetSessionList();
-
-            // Assert
-            callerMock.Verify(c =>
-                c.SendCoreAsync(HubEventNames.SessionsUpdated,
-                    It.Is<object[]>(args => args.Length == 1 && args[0] is List<ChatSession>),
-                    It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
@@ -351,13 +272,11 @@ namespace Backend.Test.UnitTests.Hubs
 
             // Assert
             callerMock.Verify(c =>
-                c.SendCoreAsync(HubEventNames.HistoryChunk,
-                    It.Is<object[]>(args => args.Length == 2 && 
-                        (string)args[0] == "sessionId" && 
-                        args[1] is List<ChatMessage> && 
-                        ((List<ChatMessage>)args[1]).Count == 2),
+                c.SendCoreAsync(
+                    HubEventNames.HistoryStreamChunk,
+                    It.Is<object[]>(args => args.Length == 1 && args[0] is ChatMessage),
                     It.IsAny<CancellationToken>()),
-                Times.Once);
+                Times.Exactly(2));
         }
     }
 }

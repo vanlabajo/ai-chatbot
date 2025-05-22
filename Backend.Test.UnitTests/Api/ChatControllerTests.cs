@@ -183,7 +183,7 @@ namespace Backend.Test.UnitTests.Api
             static async IAsyncEnumerable<string> GetTestValues()
             {
                 yield return "This is the";
-                yield return " Test Subject!";
+                yield return " Test Title!";
 
                 await Task.CompletedTask;
             }
@@ -328,6 +328,88 @@ namespace Backend.Test.UnitTests.Api
             Assert.Equal("Hello, World!", response.Response);
             Assert.NotNull(cachedSessions);
             Assert.Single(cachedSessions);
+        }
+
+        [Fact]
+        public async Task GetSessions_ReturnsOk_WhenSessionsExist()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            var existingSession = new ChatSession
+            {
+                Id = "001",
+                Messages =
+                [
+                    new() { Role = ChatRole.User, Content = "Hello" },
+                    new() { Role = ChatRole.Assistant, Content = "Hi there!" }
+                ]
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([existingSession]);
+            // Act
+            var result = await controller.GetSessions(default);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var sessions = Assert.IsType<List<ChatSession>>(okResult.Value);
+            Assert.Single(sessions);
+        }
+
+        [Fact]
+        public async Task GetSessions_ReturnsOk_WhenNoSessionsExist()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            // Act
+            var result = await controller.GetSessions(default);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var sessions = Assert.IsType<List<ChatSession>>(okResult.Value);
+            Assert.Empty(sessions);
+        }
+
+        [Fact]
+        public async Task GetSessions_ReturnsBadRequest_WhenUserIdentityIsNull()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext()
+                }
+            };
+            // Act
+            var result = await controller.GetSessions(default);
+            // Assert
+            Assert.IsType<BadRequestObjectResult>(result);
         }
     }
 }

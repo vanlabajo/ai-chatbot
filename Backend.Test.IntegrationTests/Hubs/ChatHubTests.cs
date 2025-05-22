@@ -29,16 +29,16 @@ namespace Backend.Test.IntegrationTests.Hubs
             };
             var chunkBuffer = new List<string>();
 
-            hubConnection.On<string>(HubEventNames.StreamChunk, chunk =>
+            hubConnection.On<string>(HubEventNames.ResponseStreamChunk, chunk =>
             {
                 chunkBuffer.Add(chunk);
             });
 
-            hubConnection.On(HubEventNames.SubjectUpdated, (string sessionId, string subject) =>
+            hubConnection.On<ChatSession>(HubEventNames.SessionUpdate, sessionUpdate =>
             {
                 if (session.Id == sessionId)
                 {
-                    session.Subject = subject;
+                    session.Title = sessionUpdate.Title;
                 }
             });
 
@@ -62,11 +62,12 @@ namespace Backend.Test.IntegrationTests.Hubs
             Assert.NotNull(session);
             Assert.True(session.Messages.Count > 1);
             Assert.Equal(ChatRole.User, session.Messages[0].Role);
+            Assert.Equal(ChatRole.User.ToString(), session.Messages[0].RoleName);
             Assert.Equal(userPrompt.Content, session.Messages[0].Content);
             Assert.False(string.IsNullOrEmpty(session.Messages[1].Content));
             Assert.Equal(ChatRole.Assistant, session.Messages[1].Role);
             Assert.Equal(sessionId, session.Id);
-            Assert.False(string.IsNullOrEmpty(session.Subject));
+            Assert.False(string.IsNullOrEmpty(session.Title));
 
             await hubConnection.StopAsync();
         }

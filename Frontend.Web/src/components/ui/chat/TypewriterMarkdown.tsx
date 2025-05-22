@@ -22,14 +22,26 @@ export const TypewriterMarkdown = ({
 
   // Helper to get the new part of the text
   const getNewUnits = (oldText: string, newText: string, mode: TypingMode) => {
+    if (oldText === newText) return [];
     if (mode === "word") {
       const oldUnits = oldText.split(/(\s+)/);
       const newUnits = newText.split(/(\s+)/);
-      return newUnits.slice(oldUnits.length);
+      let diffIndex = 0;
+      const minLen = Math.min(oldUnits.length, newUnits.length);
+      while (diffIndex < minLen && oldUnits[diffIndex] === newUnits[diffIndex]) {
+        diffIndex++;
+      }
+      return newUnits.slice(diffIndex);
     } else {
-      return newText.slice(oldText.length).split("");
+      // char mode
+      let diffIndex = 0;
+      const minLen = Math.min(oldText.length, newText.length);
+      while (diffIndex < minLen && oldText[diffIndex] === newText[diffIndex]) {
+        diffIndex++;
+      }
+      return newText.slice(diffIndex).split("");
     }
-  }
+  };
 
   const resetTyping = () => {
     if (timeoutId.current) clearTimeout(timeoutId.current);
@@ -45,20 +57,14 @@ export const TypewriterMarkdown = ({
       return;
     }
 
-    const oldText = prevTextRef.current;
-    // If this is the first chunk or oldText is empty, animate the whole text
-    const isFirstChunk = oldText.length === 0;
-    const newUnits = isFirstChunk
-      ? (typingMode === "word" ? text.split(/(\s+)/) : text.split(""))
-      : getNewUnits(oldText, text, typingMode);
-
-    let currentText = isFirstChunk ? "" : oldText;
+    let currentText = prevTextRef.current;
+    const newUnits = getNewUnits(currentText, text, typingMode);
     setIsTyping(true);
 
     const typeNext = () => {
       if (newUnits.length === 0) {
         setIsTyping(false);
-        setVisibleText(text);
+        setVisibleText(text); // Make sure full text is visible
         prevTextRef.current = text;
         onTypingFinished?.();
         return;
@@ -66,6 +72,7 @@ export const TypewriterMarkdown = ({
       const nextUnit = newUnits.shift()!;
       currentText += nextUnit;
       setVisibleText(currentText);
+      prevTextRef.current = currentText;
 
       // Delay settings
       const trimmed = nextUnit.trim();

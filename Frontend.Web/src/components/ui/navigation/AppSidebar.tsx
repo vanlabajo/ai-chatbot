@@ -17,9 +17,10 @@ import { ChatSession, HubEventNames } from "@/lib/definitions";
 import { getConnection } from "@/lib/signalr";
 import { Logo } from "@/public/Logo";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
+import { differenceInCalendarDays, isToday, isYesterday } from "date-fns";
 import { PencilLine } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ComponentProps, useCallback, useEffect, useRef, useState } from "react";
+import React, { ComponentProps, useCallback, useEffect, useRef, useState } from "react";
 import { LoadingStatus } from "./LoadingStatus";
 import { UserProfile } from "./UserProfile";
 
@@ -125,11 +126,44 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     setSearchTerm(e.target.value);
   };
 
-  const filteredNavigation = navigation.filter(session =>
-    (session.title ?? "")
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const groupSessionsByDay = (sessions: ChatSession[]) => {
+    const groups: Record<string, ChatSession[]> = {};
+    const now = new Date();
+
+    sessions.forEach(session => {
+      const date = session.timestamp ? new Date(session.timestamp) : null;
+      let label = "Unknown";
+      if (date) {
+        if (isToday(date)) {
+          label = "Today";
+        } else if (isYesterday(date)) {
+          label = "Yesterday";
+        } else {
+          const daysAgo = differenceInCalendarDays(now, date);
+          label = `${daysAgo} days ago`;
+        }
+      }
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(session);
+    });
+
+    return groups;
+  }
+
+  const filteredNavigation = navigation
+    .filter(session =>
+      (session.title ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort descending (most recent first)
+      const aTime = new Date(a.timestamp ?? 0).getTime();
+      const bTime = new Date(b.timestamp ?? 0).getTime();
+      return bTime - aTime;
+    });
+
+  const groupedSessions = groupSessionsByDay(filteredNavigation);
 
   return (
     <Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
@@ -174,24 +208,33 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         <SidebarGroup className="pt-0">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {filteredNavigation.map((session: ChatSession) => (
-                <SidebarMenuItem
-                  key={session.id}
-                  className="flex items-center"
-                >
-                  <SidebarLink
-                    href={`#${session.id}`}
-                    isActive={session.id === activeSessionId}
-                    className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
-                    title={session.title ?? ""}
-                    onClick={() => handleClick(session.id)}
-                  >
-                    <span className="flex w-full items-center justify-between">
-                      <span className="truncate max-w-[12rem] block">{session.title}</span>
-                      {!session.title && <LoadingStatus className="size-5" />}
+              {Object.entries(groupedSessions).map(([label, sessions]) => (
+                <React.Fragment key={label}>
+                  <SidebarMenuItem className="flex items-center">
+                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                      {label}
                     </span>
-                  </SidebarLink>
-                </SidebarMenuItem>
+                  </SidebarMenuItem>
+                  {sessions.map((session: ChatSession) => (
+                    <SidebarMenuItem
+                      key={session.id}
+                      className="flex items-center"
+                    >
+                      <SidebarLink
+                        href={`#${session.id}`}
+                        isActive={session.id === activeSessionId}
+                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                        title={session.title ?? ""}
+                        onClick={() => handleClick(session.id)}
+                      >
+                        <span className="flex w-full items-center justify-between">
+                          <span className="truncate max-w-[12rem] block">{session.title}</span>
+                          {!session.title && <LoadingStatus className="size-5" />}
+                        </span>
+                      </SidebarLink>
+                    </SidebarMenuItem>
+                  ))}
+                </React.Fragment>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

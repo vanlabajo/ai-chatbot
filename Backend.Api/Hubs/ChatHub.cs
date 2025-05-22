@@ -24,6 +24,12 @@ namespace Backend.Api.Hubs
 
             var sessions = await GetOrCreateSessions(user);
             var session = GetOrCreateSession(sessions, sessionId);
+            var sessionUpdate = new ChatSession
+            {
+                Id = session.Id,
+                Timestamp = session.Timestamp
+            };
+            await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
 
             session.Messages.Add(new ChatMessage { Role = ChatRole.User, Content = message });
             await Clients.Caller.SendAsync(HubEventNames.ResponseStreamStart);
@@ -42,12 +48,7 @@ namespace Backend.Api.Hubs
             if (string.IsNullOrEmpty(session.Title))
             {
                 session.Title = await GenerateConversationTitle(session.Messages);
-                var sessionUpdate = new ChatSession
-                {
-                    Id = session.Id,
-                    Title = session.Title,
-                    Timestamp = session.Timestamp
-                };
+                sessionUpdate.Title = session.Title;
                 await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
             }
 

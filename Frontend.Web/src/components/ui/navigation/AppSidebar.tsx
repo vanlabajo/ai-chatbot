@@ -52,7 +52,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
       if (exists) {
         return prev.map(session =>
           session.id === updatedSession.id
-            ? { ...session, subject: updatedSession.title }
+            ? { ...session, title: updatedSession.title }
             : session
         );
       } else {

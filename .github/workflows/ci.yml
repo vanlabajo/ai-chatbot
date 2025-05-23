@@ -94,15 +94,6 @@ jobs:
           name: integration-test
           path: Backend.Test.IntegrationTests
 
-      - name: Show integration test directory contents
-        run: |
-          echo "Root:"
-          ls -al
-          echo "Backend.Test.IntegrationTests:"
-          ls -al Backend.Test.IntegrationTests
-          echo "Backend.Test.IntegrationTests/net8.0:"
-          ls -al Backend.Test.IntegrationTests/net8.0
-
       - name: Download unit test artifact
         uses: actions/download-artifact@v4
         with:
@@ -119,9 +110,9 @@ jobs:
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
       - name: Run integration tests
-        working-directory: Backend.Test.IntegrationTests/${{ env.DOTNET_TFM }}
+        working-directory: Backend.Test.IntegrationTests
         run: dotnet test Backend.Test.IntegrationTests.dll --no-build --verbosity normal --configuration Release
 
       - name: Run unit tests
-        working-directory: Backend.Test.UnitTests/${{ env.DOTNET_TFM }}
+        working-directory: Backend.Test.UnitTests
         run: dotnet test Backend.Test.UnitTests.dll --no-build --verbosity normal --configuration Release

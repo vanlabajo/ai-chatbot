@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '24.0.x'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    name: Build and Test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run Tests
+        run: dotnet test --no-build --verbosity normal
+
+      - name: Upload backend artifact
+        uses: actions/upload/artifact@v4
+        with:
+          name: build-and-test
+          path: Backend.Api/bin/Release/net*/
+
+      # Frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install PNPM
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-and-test
+          path: Frontend.Web/dist/
+      

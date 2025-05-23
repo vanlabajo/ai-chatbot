@@ -9,6 +9,7 @@ on:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  DOTNET_TFM: 'net8.0'
   NODE_VERSION: '24.0.x'
 
 jobs:
@@ -33,19 +34,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
-          path: Backend.Api/bin/Release/net*/
+          path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
 
       - name: Upload integration test artifact
         uses: actions/upload-artifact@v4
         with:
           name: integration-test
-          path: Backend.Test.IntegrationTests/bin/Release/net*/
+          path: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/
 
       - name: Upload unit test artifact
         uses: actions/upload-artifact@v4
         with:
           name: unit-test
-          path: Backend.Test.UnitTests/bin/Release/net*/
+          path: Backend.Test.UnitTests/bin/Release/${{ env.DOTNET_TFM }}/
 
       # Frontend build
       - name: Setup Node.js
@@ -102,16 +103,16 @@ jobs:
       - name: Update Integration.Tests appsettings
         uses: microsoft/variable-substitution@v1
         with:
-          files: Backend.Test.IntegrationTests/appsettings.json
+          files: Backend.Test.IntegrationTests/${{ env.DOTNET_TFM }}/appsettings.json
         env:
           AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
       - name: Run integration tests
-        working-directory: Backend.Test.IntegrationTests
+        working-directory: Backend.Test.IntegrationTests/${{ env.DOTNET_TFM }}
         run: dotnet test Backend.Test.IntegrationTests.dll --no-build --verbosity normal --configuration Release
 
       - name: Run unit tests
-        working-directory: Backend.Test.UnitTests
+        working-directory: Backend.Test.UnitTests/${{ env.DOTNET_TFM }}
         run: dotnet test Backend.Test.UnitTests.dll --no-build --verbosity normal --configuration Release

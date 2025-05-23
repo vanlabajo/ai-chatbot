@@ -31,6 +31,20 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      - name: Update Integration.Tests appsettings
+        run: |
+          jq \
+            --arg endpoint "$AZURE_OPENAI_ENDPOINT" \
+            --arg apikey "$AZURE_OPENAI_APIKEY" \
+            --arg deployment "$AZURE_OPENAI_DEPLOYMENTNAME" \
+            '.AzureOpenAI.Endpoint=$endpoint | .AzureOpenAI.ApiKey=$apikey | .AzureOpenAI.DeploymentName=$deployment' \
+            Backend.Test.IntegrationTests/appsettings.json > Backend.Test.IntegrationTests/appsettings.tmp.json
+          mv Backend.Test.IntegrationTests/appsettings.tmp.json Backend.Test.IntegrationTests/appsettings.json
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_APIKEY: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AZURE_OPENAI_DEPLOYMENTNAME: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+
       - name: Run Tests
         run: dotnet test --no-build --verbosity normal --configuration Release
 

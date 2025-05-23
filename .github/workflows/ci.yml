@@ -35,6 +35,18 @@ jobs:
           name: backend-build
           path: Backend.Api/bin/Release/net*/
 
+      - name: Upload integration test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test
+          path: Backend.Test.IntegrationTests/bin/Release/net*/
+
+      - name: Upload unit test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test
+          path: Backend.Test.UnitTests/bin/Release/net*/
+
       # Frontend build
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -56,7 +68,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: Frontend.Web/dist/
+          path: |
+            Frontend.Web/.next
+            Frontend.Web/package.json
+            Frontend.Web/pnpm-lock.yaml
+            Frontend.Web/next.config.mjs
+            Frontend.Web/public
 
   test:
     runs-on: ubuntu-latest
@@ -64,26 +81,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-build
-          path: Backend.Api/bin/Release/net8.0/
-
       # Backend tests
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Download integration test artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test
+          path: Backend.Test.IntegrationTests/bin/Release/net*/
+
+      - name: Download unit test artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test
+          path: Backend.Test.UnitTests/bin/Release/net*/
+
       - name: Update Integration.Tests appsettings
         uses: microsoft/variable-substitution@v1
         with:
-          files: Backend.Test.IntegrationTests/appsettings.json
+          files: Backend.Test.IntegrationTests/bin/Release/net*/appsettings.json
         env:
           AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
-      - name: Run backend tests
+      - name: Run integration tests
+        working-directory: Backend.Test.IntegrationTests
+        run: dotnet test --no-build --verbosity normal --configuration Release
+
+      - name: Run unit tests
+        working-directory: Backend.Test.UnitTests
         run: dotnet test --no-build --verbosity normal --configuration Release

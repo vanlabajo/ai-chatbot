@@ -110,8 +110,8 @@ jobs:
 
       - name: Run integration tests
         working-directory: Backend.Test.IntegrationTests
-        run: dotnet test --no-build --verbosity normal --configuration Release
+        run: dotnet test Backend.Test.IntegrationTests.dll --no-build --verbosity normal --configuration Release
 
       - name: Run unit tests
         working-directory: Backend.Test.UnitTests
-        run: dotnet test --no-build --verbosity normal --configuration Release
+        run: dotnet test Backend.Test.UnitTests.dll --no-build --verbosity normal --configuration Release

@@ -1,11 +1,9 @@
 ﻿using Backend.Core;
 using Backend.Core.DTOs;
-using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
-using System.Net.WebSockets;
 using System.Text;
 
 namespace Backend.Api.Controllers
@@ -31,72 +29,97 @@ namespace Backend.Api.Controllers
             if (user == null)
                 return BadRequest("User identity is not available.");
 
-            var conversations = await _cacheService.GetAsync<List<ChatMessage>>($"conversations-{user}", cancellationToken);
-            if (conversations == null || conversations.Count == 0)
+            // Retrieve or create the chat sessions
+            var sessions = await GetOrCreateSessions(user, cancellationToken);
+            var session = GetOrCreateSession(sessions, request.SessionId);
+
+            // Add the user's message to the session
+            session.Messages.Add(new ChatMessage { Role = ChatRole.User, Content = request.Message });
+
+            // Generate the assistant's response
+            var assistantResponse = await _openAiService.GetChatResponseAsync(session.Messages);
+            session.Messages.Add(new ChatMessage { Role = ChatRole.Assistant, Content = assistantResponse });
+
+            // Generate a title for the session if it doesn't already exist
+            if (string.IsNullOrEmpty(session.Title))
             {
-                conversations = [];
+                session.Title = await GenerateConversationTitle(session.Messages, cancellationToken);
             }
 
-            conversations.Add(new ChatMessage { Role = "user", Content = request.Message });
+            // Save the updated sessions list back to the cache
+            await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
 
-            var response = await _openAiService.GetChatResponseAsync(conversations);
-
-            conversations.Add(new ChatMessage { Role = "assistant", Content = response });
-            await _cacheService.SetAsync($"conversations-{user}", conversations, cancellationToken: cancellationToken);
-
-            return Ok(new ChatResponse { Response = response });
+            return Ok(new ChatResponse { Response = assistantResponse });
         }
 
-        [HttpGet("ws")]
-        [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task HandleWebSocket(CancellationToken cancellationToken)
+        [HttpGet("sessions")]
+        [ProducesResponseType(typeof(List<ChatSession>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> GetSessions(CancellationToken cancellationToken)
         {
-            if (!HttpContext.WebSockets.IsWebSocketRequest)
+            var user = User.GetNameIdentifierId();
+            if (user == null)
+                return BadRequest("User identity is not available.");
+            var sessions = await GetOrCreateSessions(user, cancellationToken);
+            // Remove messages from the session objects before sending them to the client
+            var sessionList = sessions.Select(s => new ChatSession
             {
-                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                return;
-            }
-
-            var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-            await ProcessWebSocketMessages(webSocket, cancellationToken);
+                Id = s.Id,
+                Title = s.Title,
+                Timestamp = s.Timestamp
+            }).ToList();
+            return Ok(sessionList);
         }
 
-        private async Task ProcessWebSocketMessages(WebSocket webSocket, CancellationToken cancellationToken)
+        private async Task<List<ChatSession>> GetOrCreateSessions(string user, CancellationToken cancellationToken)
         {
-            var buffer = new byte[1024 * 4];
-            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+            var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
+            return sessions ?? [];
+        }
 
-            while (!result.CloseStatus.HasValue)
+        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string? sessionId)
+        {
+            var session = !string.IsNullOrEmpty(sessionId)
+                ? sessions.FirstOrDefault(s => s.Id == sessionId)
+                : null;
+
+            if (session == null)
             {
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-                if (string.IsNullOrEmpty(message)) throw new BadRequestException("Message cannot be empty.");
-
-                var user = User.GetNameIdentifierId() ?? throw new BadRequestException("User identity is not available.");
-
-                var conversations = await _cacheService.GetAsync<List<ChatMessage>>($"conversations-{user}", cancellationToken) ?? new List<ChatMessage>();
-                conversations.Add(new ChatMessage { Role = "user", Content = message });
-
-                var chatResponseBuilder = new StringBuilder();
-                await foreach (var response in _openAiService.GetChatResponseStreamingAsync(conversations))
+                session = new ChatSession
                 {
-                    chatResponseBuilder.Append(response);
-                    var responseBytes = Encoding.UTF8.GetBytes(response);
-                    await webSocket.SendAsync(new ArraySegment<byte>(responseBytes), WebSocketMessageType.Text, true, cancellationToken);
-                }
-
-                conversations.Add(new ChatMessage { Role = "assistant", Content = chatResponseBuilder.ToString() });
-                await _cacheService.SetAsync($"conversations-{user}", conversations, cancellationToken: cancellationToken);
-
-                // Send an "end message" to indicate the stream is complete
-                var endMessage = Encoding.UTF8.GetBytes("[END]");
-                await webSocket.SendAsync(new ArraySegment<byte>(endMessage), WebSocketMessageType.Text, true, cancellationToken);
-
-                // Wait for the next message from the client
-                result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                    Id = sessionId ?? Guid.NewGuid().ToString(),
+                    Messages =
+                    [
+                        new() { Role = ChatRole.System, Content = "You are a helpful assistant, providing informative and concise answers to user queries. Your goal is to be informative, respectful, and helpful." },
+                        new() { Role = ChatRole.System, Content = "You are trained to be a conversational AI assistant." },
+                        new() { Role = ChatRole.System, Content = "You are available to answer questions on a wide range of topics, but you are not a medical professional, financial advisor, or lawyer." },
+                        new() { Role = ChatRole.System, Content = "You will answer questions in a way that is easy to understand, avoiding technical jargon unless necessary." },
+                        new() { Role = ChatRole.System, Content = "If you are asked to perform actions (e.g., make a booking), you will advise the user on how to do so, but you will not perform the action yourself." }
+                    ]
+                };
+                sessions.Add(session);
             }
 
-            await webSocket.CloseAsync(result.CloseStatus.Value, result.CloseStatusDescription, CancellationToken.None);
+            return session;
+        }
+
+        private async Task<string> GenerateConversationTitle(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
+        {
+            var titlePrompt = new ChatMessage
+            {
+                Role = ChatRole.User,
+                Content = "What is the title of this conversation? Please respond with at most four words. Do not include quotation marks or punctuation around the title."
+            };
+
+            var messagesWithPrompt = messages.Append(titlePrompt).ToList();
+            var subjectBuilder = new StringBuilder();
+
+            await foreach (var response in _openAiService.GetChatResponseStreamingAsync(messagesWithPrompt))
+            {
+                subjectBuilder.Append(response);
+            }
+
+            return subjectBuilder.ToString();
         }
     }
 }

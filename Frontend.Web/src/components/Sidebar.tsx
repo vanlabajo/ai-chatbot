@@ -295,6 +295,7 @@ const SidebarLink = React.forwardRef<
         "text-gray-900 dark:text-gray-400 hover:dark:text-gray-50",
         "data-[active=true]:text-blue-600 data-[active=true]:dark:text-blue-500",
         focusRing,
+        className
       )}
       {...props}
     >

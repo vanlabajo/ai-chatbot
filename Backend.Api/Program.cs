@@ -1,6 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using Backend.Api;
+using Backend.Api.Hubs;
 using Backend.Core;
 using Backend.Infrastructure;
 using Backend.Infrastructure.AzureOpenAI;
@@ -42,6 +43,7 @@ builder.Services
         return azureClient.GetChatClient(options.DeploymentName);
     });
 
+builder.Services.AddSignalR();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -85,7 +87,8 @@ builder.Services.AddCors(options =>
         {
             builder.WithOrigins(allowedOrigins)
                 .AllowAnyMethod()
-                .AllowAnyHeader();
+                .AllowAnyHeader()
+                .AllowCredentials(); // Important for SignalR
         });
 });
 
@@ -110,20 +113,20 @@ if (!app.Environment.IsProduction())
     });
 }
 
-app.UseWebSockets();
-app.UseMiddleware<WebSocketAuthenticationMiddleware>();
-
+app.UseMiddleware<QueryStringTokenMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowSpecificOrigins");
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
-app.UseCors("AllowSpecificOrigins");
-
 app.MapControllers();
+
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
 

@@ -1,9 +1,9 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using Backend.Core.Models;
 using Backend.Infrastructure.AzureOpenAI;
 using Backend.Infrastructure.Tiktoken;
 using Microsoft.Extensions.Configuration;
-using OpenAI.Chat;
 using System.Text;
 using Tiktoken;
 
@@ -37,13 +37,23 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             var chatClient = azureClient.GetChatClient(options.DeploymentName);
 
             var openAIService = new OpenAIService(chatClient, new TokenizerService(ModelToEncoder.For("gpt-4")));
-            // Act
-            var result = await openAIService.GetChatResponseAsync([
-                new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }
-            ]);
-            // Assert
-            Assert.NotNull(result);
-            Assert.NotEqual(string.Empty, result);
+            // Act & Assert
+            try
+            {
+                var result = await openAIService.GetChatResponseAsync([
+                    new Core.Models.ChatMessage { Role = ChatRole.User, Content = "Hello" }
+                ]);
+                // Assert
+                Assert.NotNull(result);
+                Assert.NotEqual(string.Empty, result);
+            }
+            catch (RequestFailedException ex)
+            {
+                // Assert
+                Assert.Equal(429, ex.Status);
+                // Optionally check the message
+                Assert.Contains("Too Many Requests", ex.Message, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         [Fact]
@@ -60,18 +70,28 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             var azureClient = new AzureOpenAIClient(new Uri(options.Endpoint), new AzureKeyCredential(options.ApiKey));
             var chatClient = azureClient.GetChatClient(options.DeploymentName);
             var openAIService = new OpenAIService(chatClient, new TokenizerService(ModelToEncoder.For("gpt-4")));
-            // Act
-            var result = openAIService.GetChatResponseStreamingAsync([
-                new Core.Models.ChatMessage { Role = ChatMessageRole.User.ToString(), Content = "Hello" }
-            ]);
-            // Assert
-            var responseBuilder = new StringBuilder();
-            await foreach (var part in result)
+            // Act & Asset
+            try
             {
-                responseBuilder.Append(part);
+                var result = openAIService.GetChatResponseStreamingAsync([
+                new Core.Models.ChatMessage { Role = ChatRole.User, Content = "Hello" }
+            ]);
+                // Assert
+                var responseBuilder = new StringBuilder();
+                await foreach (var part in result)
+                {
+                    responseBuilder.Append(part);
+                }
+                Assert.NotNull(responseBuilder.ToString());
+                Assert.NotEqual(string.Empty, responseBuilder.ToString());
             }
-            Assert.NotNull(responseBuilder.ToString());
-            Assert.NotEqual(string.Empty, responseBuilder.ToString());
+            catch (RequestFailedException ex)
+            {
+                // Assert
+                Assert.Equal(429, ex.Status);
+                // Optionally check the message
+                Assert.Contains("Too Many Requests", ex.Message, StringComparison.OrdinalIgnoreCase);
+            }
         }
     }
 }

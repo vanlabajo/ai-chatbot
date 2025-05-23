@@ -65,15 +65,15 @@ namespace Backend.Infrastructure.AzureOpenAI
 
         private static void AddChatMessage(List<ChatMessage> chatMessages, Core.Models.ChatMessage message)
         {
-            if (message.Role.Contains("system", StringComparison.CurrentCultureIgnoreCase))
+            if (message.Role == Backend.Core.Models.ChatRole.System)
             {
                 chatMessages.Add(new SystemChatMessage(message.Content));
             }
-            else if (message.Role.Contains("user", StringComparison.CurrentCultureIgnoreCase))
+            else if (message.Role == Backend.Core.Models.ChatRole.User)
             {
                 chatMessages.Add(new UserChatMessage(message.Content));
             }
-            else if (message.Role.Contains("assistant", StringComparison.CurrentCultureIgnoreCase))
+            else if (message.Role == Backend.Core.Models.ChatRole.Assistant)
             {
                 chatMessages.Add(new AssistantChatMessage(message.Content));
             }

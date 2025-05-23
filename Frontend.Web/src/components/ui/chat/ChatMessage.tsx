@@ -4,14 +4,25 @@ import { motion } from 'framer-motion';
 import { SparklesIcon } from "./ChatIcons";
 import { ChatMessageActions } from './ChatMessageActions';
 import { Markdown } from './Markdown';
+import { TypewriterMarkdown } from './TypewriterMarkdown';
 
-export const PreviewChatMessage = ({ message }: { message: ChatMessage; }) => {
+export const PreviewChatMessage = ({
+  message,
+  activateTypewritingEffect = false,
+  onTypewriterFinished
+}: {
+  message: ChatMessage;
+  activateTypewritingEffect?: boolean;
+  onTypewriterFinished?: () => void;
+}) => {
+  if (message.role !== 'assistant' && message.role !== 'user') return;
 
   return (
     <motion.div
       className="w-full mx-auto max-w-3xl px-4 group/message"
-      initial={{ y: 5, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       data-role={message.role}
     >
       <div
@@ -28,7 +39,15 @@ export const PreviewChatMessage = ({ message }: { message: ChatMessage; }) => {
         <div className="flex flex-col w-full">
           {message.content && (
             <div className="flex flex-col gap-4 text-left">
-              <Markdown>{message.content}</Markdown>
+              {message.role === "assistant" ? (
+                <TypewriterMarkdown
+                  text={message.content}
+                  isActive={activateTypewritingEffect}
+                  onTypingFinished={onTypewriterFinished}
+                />
+              ) : (
+                <Markdown>{message.content}</Markdown>
+              )}
             </div>
           )}
 
@@ -57,8 +76,11 @@ export const ThinkingChatMessage = () => {
           'group-data-[role=user]/message:bg-muted'
         )}
       >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border ring-gray-200">
           <SparklesIcon size={14} />
+        </div>
+        <div className="flex flex-col gap-4 text-left text-gray-500">
+          Thinking...
         </div>
       </div>
     </motion.div>

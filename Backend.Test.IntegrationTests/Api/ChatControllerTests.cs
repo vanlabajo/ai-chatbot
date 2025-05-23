@@ -1,12 +1,14 @@
 ﻿using Backend.Core.DTOs;
 using System.Net;
-using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 
 namespace Backend.Test.IntegrationTests.Api
 {
-    public class ChatControllerTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
+    public class ChatControllerTests(CustomWebApplicationFactory factory, AllowedOriginsFactory allowedOriginsFactory, EmptyOriginsFactory emptyOriginsFactory) : 
+        IClassFixture<CustomWebApplicationFactory>,
+        IClassFixture<AllowedOriginsFactory>,
+        IClassFixture<EmptyOriginsFactory>
     {
         private readonly HttpClient _client = factory.CreateClient();
         private readonly JsonSerializerOptions _jsonOptions = new()
@@ -42,37 +44,34 @@ namespace Backend.Test.IntegrationTests.Api
         }
 
         [Fact]
-        public async Task HandleWebSocket_ReturnsBadRequest_WhenNotWebSocketRequest()
+        public async Task Chat_CorsPolicy_AllowsConfiguredOrigin()
         {
+            // Arrange
+            var client = allowedOriginsFactory.CreateClient();
+            var request = new ChatRequest { Message = "Hello" };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
             // Act
-            var response = await _client.GetAsync("/api/chat/ws");
+            var response = await client.PostAsync("/api/chat", content);
             // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.Headers.Contains("Access-Control-Allow-Origin"));
+            Assert.Equal("http://localhost:3000", response.Headers.GetValues("Access-Control-Allow-Origin").First());
         }
 
         [Fact]
-        public async Task HandleWebSocket_ReturnsOk_WhenWebSocketRequest()
+        public async Task Chat_CorsPolicy_DoesNotAllowAnyOrigin_WhenAllowedOriginsIsEmpty()
         {
             // Arrange
-            var client = factory.Server.CreateWebSocketClient();
-            using var webSocket = await client.ConnectAsync(new Uri("ws://localhost/api/chat/ws"), CancellationToken.None);
+            var client = emptyOriginsFactory.CreateClient();
+            var request = new ChatRequest { Message = "Hello" };
+            var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Add("Origin", "http://localhost:3000");
             // Act
-            var message = Encoding.UTF8.GetBytes("Hello");
-            await webSocket.SendAsync(new ArraySegment<byte>(message), WebSocketMessageType.Text, true, CancellationToken.None);
-            var buffer = new byte[1024];
-            var accumulatedMessage = new StringBuilder();
-            while (!webSocket.CloseStatus.HasValue)
-            {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                var response = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                accumulatedMessage.AppendLine(response);
-                if (response.Equals("[END]"))
-                {
-                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                }
-            }
+            var response = await client.PostAsync("/api/chat", content);
             // Assert
-            Assert.False(string.IsNullOrEmpty(accumulatedMessage.ToString()));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
         }
     }
 }

@@ -103,7 +103,7 @@ jobs:
       - name: Update Integration.Tests appsettings
         uses: microsoft/variable-substitution@v1
         with:
-          files: Backend.Test.IntegrationTests/${{ env.DOTNET_TFM }}/appsettings.json
+          files: Backend.Test.IntegrationTests/*/appsettings.json
         env:
           AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}

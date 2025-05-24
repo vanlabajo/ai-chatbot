@@ -47,12 +47,9 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(result);
                 Assert.NotEqual(string.Empty, result);
             }
-            catch (RequestFailedException ex)
+            catch (Exception ex)
             {
-                // Assert
-                Assert.Equal(429, ex.Status);
-                // Optionally check the message
-                Assert.Contains("Too Many Requests", ex.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("HTTP 429", ex.Message, StringComparison.OrdinalIgnoreCase);
             }
         }
 

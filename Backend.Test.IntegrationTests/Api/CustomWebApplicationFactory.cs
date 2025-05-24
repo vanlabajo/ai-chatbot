@@ -18,7 +18,6 @@ namespace Backend.Test.IntegrationTests.Api
         {
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                config.Sources.Clear();
                 config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
                 config.AddUserSecrets<CustomWebApplicationFactory>();
             });

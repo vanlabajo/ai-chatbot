@@ -27,23 +27,17 @@ jobs:
       - name: Restore backend dependencies
         run: dotnet restore
 
-      - name: Build backend
-        run: dotnet build --no-restore --configuration Release
-
-      - name: Update appsettings
+      - name: Update backend appsettings
         uses: microsoft/variable-substitution@v1
         with:
-          files: 'Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json, Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json'
+          files: 'Backend.Api/appsettings.json, Backend.Test.IntegrationTests/appsettings.json'
         env:
           AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
-      - name: Upload integration test artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test
-          path: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/
+      - name: Build backend
+        run: dotnet build --no-restore --configuration Release
 
       - name: Test
         run: dotnet test Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/Backend.Test.IntegrationTests.dll --verbosity detailed

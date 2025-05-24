@@ -30,17 +30,14 @@ jobs:
       - name: Build backend
         run: dotnet build --no-restore --configuration Release
 
-      - name: Update Integration.Tests appsettings
+      - name: Update appsettings
         uses: microsoft/variable-substitution@v1
         with:
-          files: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json
+          files: 'Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json, Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json'
         env:
           AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
-
-      - name: Test
-        run: dotnet test Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/Backend.Test.IntegrationTests.dll --no-build --configuration Release
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
@@ -111,15 +108,6 @@ jobs:
         with:
           name: unit-test
           path: Backend.Test.UnitTests
-
-      - name: Update Integration.Tests appsettings
-        uses: microsoft/variable-substitution@v1
-        with:
-          files: Backend.Test.IntegrationTests/appsettings.json
-        env:
-          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
-          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
       - name: Run integration tests
         working-directory: Backend.Test.IntegrationTests

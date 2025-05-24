@@ -40,7 +40,7 @@ jobs:
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
       - name: Test
-        run: dotnet test --no-build --configuration Release
+        run: dotnet test Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/Backend.Test.IntegrationTests.dll --no-build --configuration Release
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4

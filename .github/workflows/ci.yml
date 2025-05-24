@@ -30,6 +30,15 @@ jobs:
       - name: Build backend
         run: dotnet build --no-restore --configuration Release
 
+      - name: Update Integration.Tests appsettings
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json
+        env:
+          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+
       - name: Test
         run: dotnet test --no-build --configuration Release
 

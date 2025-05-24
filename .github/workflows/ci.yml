@@ -27,7 +27,7 @@ jobs:
       - name: Restore backend dependencies
         run: dotnet restore
 
-      - name: Update backend appsettings
+      - name: Update appsettings
         uses: microsoft/variable-substitution@v1
         with:
           files: 'Backend.Api/appsettings.json, Backend.Test.IntegrationTests/appsettings.json'
@@ -39,14 +39,23 @@ jobs:
       - name: Build backend
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/Backend.Test.IntegrationTests.dll --verbosity detailed
-
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
           path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
+      
+      - name: Upload integration test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test
+          path: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/
+
+      - name: Upload unit test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test
+          path: Backend.Test.UnitTests/bin/Release/${{ env.DOTNET_TFM }}/
 
       # Frontend build
       - name: Setup Node.js
@@ -75,3 +84,35 @@ jobs:
             Frontend.Web/pnpm-lock.yaml
             Frontend.Web/next.config.mjs
             Frontend.Web/public
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend tests
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download integration test artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test
+          path: Backend.Test.IntegrationTests
+
+      - name: Download unit test artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test
+          path: Backend.Test.UnitTests
+
+      - name: Run integration tests
+        working-directory: Backend.Test.IntegrationTests
+        run: dotnet test Backend.Test.IntegrationTests.dll --no-build --verbosity normal --configuration Release
+
+      - name: Run unit tests
+        working-directory: Backend.Test.UnitTests
+        run: dotnet test Backend.Test.UnitTests.dll --no-build --verbosity normal --configuration Release

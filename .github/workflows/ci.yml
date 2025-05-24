@@ -39,9 +39,11 @@ jobs:
           AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
           AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
 
-      - name: Show appsettings.json
-        run: cat Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/appsettings.json
-          
+      - name: Upload integration test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test
+          path: Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/
 
       - name: Test
         run: dotnet test Backend.Test.IntegrationTests/bin/Release/${{ env.DOTNET_TFM }}/Backend.Test.IntegrationTests.dll --verbosity detailed

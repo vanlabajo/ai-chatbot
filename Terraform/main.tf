@@ -8,7 +8,7 @@ resource "random_string" "random" {
   length  = 6
   special = false
   upper   = false
-  numeric  = true
+  numeric = true
 }
 
 # Resource Group
@@ -31,8 +31,8 @@ resource "azurerm_cognitive_deployment" "openai" {
   name                 = "openai-chatbot-deployment-${random_string.random.result}"
   cognitive_account_id = azurerm_cognitive_account.openai.id
   model {
-    format  = "OpenAI"
-    name    = "gpt-4"
+    format = "OpenAI"
+    name   = "gpt-4"
   }
 
   sku {
@@ -47,6 +47,20 @@ resource "azurerm_service_plan" "chatbot_plan" {
   resource_group_name = azurerm_resource_group.ai_rg.name
   os_type             = "Linux"
   sku_name            = "B1"
+}
+
+# App Service for UI (define this BEFORE referencing in API)
+resource "azurerm_linux_web_app" "chatbot_ui" {
+  name                = "ai-chatbot-ui-${random_string.random.result}"
+  location            = azurerm_resource_group.ai_rg.location
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  service_plan_id     = azurerm_service_plan.chatbot_plan.id
+  site_config {
+    always_on = true
+    application_stack {
+      node_version = "20-lts"
+    }
+  }
 }
 
 # App Service for API
@@ -64,15 +78,17 @@ resource "azurerm_linux_web_app" "chatbot_api" {
   }
 
   app_settings = {
-    "OPENAI_API_KEY" = azurerm_cognitive_account.openai.primary_access_key
-    "OPENAI_ENDPOINT" = azurerm_cognitive_account.openai.endpoint
-    "OPENAI_DEPLOYMENT_NAME" = azurerm_cognitive_deployment.openai.name
+    "AzureOpenAI__ApiKey"         = azurerm_cognitive_account.openai.primary_access_key
+    "AzureOpenAI__Endpoint"       = azurerm_cognitive_account.openai.endpoint
+    "AzureOpenAI__DeploymentName" = azurerm_cognitive_deployment.openai.name
+    "AllowedOrigins__0"           = "https://${azurerm_linux_web_app.chatbot_ui.default_hostname}"
+    "AllowedOrigins__1"           = ""
+    "AllowedOrigins__2"           = ""
+    "AllowedOrigins__3"           = ""
   }
 }
 
-# Azure Load Testing
-resource "azurerm_load_test" "chatbot_loadtest" {
-  name                = "ai-chatbot-loadtest-${random_string.random.result}"
-  location            = "canadacentral"
-  resource_group_name = azurerm_resource_group.ai_rg.name
+# Output the UI hostname for reference
+output "chatbot_ui_hostname" {
+  value = azurerm_linux_web_app.chatbot_ui.default_hostname
 }

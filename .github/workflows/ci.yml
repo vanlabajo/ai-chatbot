@@ -4,43 +4,51 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  DOTNET_TFM: 'net8.0'
   NODE_VERSION: '24.0.x'
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
-    name: Build and Test
-
     steps:
       - uses: actions/checkout@v4
 
-      # Backend
+      # Backend build
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies
+      - name: Restore backend dependencies
         run: dotnet restore
 
-      - name: Build
+      - name: Update appsettings
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: 'Backend.Api/appsettings.json, Backend.Test.IntegrationTests/appsettings.json'
+        env:
+          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+
+      - name: Build backend
         run: dotnet build --no-restore --configuration Release
 
-      - name: Run Tests
-        run: dotnet test --no-build --verbosity normal
+      - name: Test
+        run: dotnet test --no-build --verbosity normal --configuration Release
 
       - name: Upload backend artifact
-        uses: actions/upload/artifact@v4
+        uses: actions/upload-artifact@v4
         with:
-          name: build-and-test
-          path: Backend.Api/bin/Release/net*/
+          name: backend-build
+          path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
 
-      # Frontend
+      # Frontend build
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -49,15 +57,21 @@ jobs:
       - name: Install PNPM
         run: npm install -g pnpm
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: Frontend.Web
         run: pnpm install
 
-      - name: Build
+      - name: Build frontend
+        working-directory: Frontend.Web
         run: pnpm build
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-and-test
-          path: Frontend.Web/dist/
-      
+          name: frontend-build
+          path: |
+            Frontend.Web/.next
+            Frontend.Web/package.json
+            Frontend.Web/pnpm-lock.yaml
+            Frontend.Web/next.config.mjs
+            Frontend.Web/public

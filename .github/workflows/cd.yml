@@ -5,6 +5,9 @@ on:
     workflows: ["CI"]
     types:
       - completed
+    branches:
+      - main
+  workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME_API: ai-chatbot-api-t7xmwp

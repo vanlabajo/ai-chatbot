@@ -37,14 +37,14 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const isInitializedRef = useRef(false);
   const sessionUpdateHandlerRef = useRef<((session: ChatSession) => void) | null>(null);
 
-  const cleanupSessionUpdateHandler = () => {
+  const cleanupSessionUpdateHandler = useCallback(() => {
     if (sessionUpdateHandlerRef.current && hubConnection) {
       if (hubConnection.state === HubConnectionState.Connected) {
         hubConnection.off(HubEventNames.SessionUpdate, sessionUpdateHandlerRef.current);
       }
       sessionUpdateHandlerRef.current = null;
     }
-  };
+  }, [hubConnection]);
 
   const sessionUpdateHandler = useCallback((updatedSession: ChatSession) => {
     setNavigation(prev => {
@@ -112,7 +112,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         isInitializedRef.current = false;
       }
     };
-  }, [initializeConnection, hubConnection]);
+  }, [initializeConnection, hubConnection, cleanupSessionUpdateHandler]);
 
   const handleClick = (sessionId: string) => {
     router.replace(`/chat?sessionId=${sessionId}`);

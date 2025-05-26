@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Markdown } from "./Markdown";
 
 type TypingMode = "char" | "word";
@@ -43,13 +43,13 @@ export const TypewriterMarkdown = ({
     }
   };
 
-  const resetTyping = () => {
+  const resetTyping = useCallback(() => {
     if (timeoutId.current) clearTimeout(timeoutId.current);
     setVisibleText(text);
     setIsTyping(false);
     prevTextRef.current = text;
     onTypingFinished?.();
-  };
+  }, [text, onTypingFinished]);
 
   useEffect(() => {
     if (!isActive) {
@@ -89,7 +89,7 @@ export const TypewriterMarkdown = ({
     return () => {
       if (timeoutId.current) clearTimeout(timeoutId.current);
     };
-  }, [text, isActive, typingMode, onTypingFinished]);
+  }, [text, isActive, typingMode, onTypingFinished, resetTyping]);
 
   return (
     <motion.div

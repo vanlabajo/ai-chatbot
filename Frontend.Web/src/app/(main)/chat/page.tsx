@@ -36,6 +36,44 @@ export default function Chat() {
   const isInitializedRef = useRef(false);
   const batchCountRef = useRef(0);
 
+  // -- Cleanup Handlers --
+
+  const cleanupMessageHandler = useCallback(() => {
+    if (messageHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.ResponseStreamChunk, messageHandlerRef.current);
+      }
+      messageHandlerRef.current = null;
+    }
+  }, [hubConnection]);
+
+  const cleanupHistoryHandler = useCallback(() => {
+    if (historyHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
+      }
+      historyHandlerRef.current = null;
+    }
+  }, [hubConnection]);
+
+  const cleanupMessageStreamEndHandler = useCallback(() => {
+    if (messageStreamEndHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.ResponseStreamEnd, messageStreamEndHandlerRef.current);
+      }
+      messageStreamEndHandlerRef.current = null;
+    }
+  }, [hubConnection]);
+
+  const cleanupHistoryStreamEndHandler = useCallback(() => {
+    if (historyStreamEndHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.HistoryStreamEnd, historyStreamEndHandlerRef.current);
+      }
+      historyStreamEndHandlerRef.current = null;
+    }
+  }, [hubConnection]);
+
   // -- Handlers --
 
   const messageHandler = useCallback((chunk: string) => {
@@ -73,56 +111,18 @@ export default function Chat() {
       setMessages(prev => [history, ...prev]);
       setOffset(prev => prev + 1);
     }
-  }, []);
+  }, [messagesContainerRef]);
 
-  const messageStreamEndHandler = () => {
+  const messageStreamEndHandler = useCallback(() => {
     cleanupMessageHandler();
     scrollToBottom();
-  }
+  }, [cleanupMessageHandler, scrollToBottom]);
 
-  const historyStreamEndHandler = () => {
+  const historyStreamEndHandler = useCallback(() => {
     cleanupHistoryHandler();
     setHasMore(batchCountRef.current === limit); // true if batch was full, false if not
     batchCountRef.current = 0;
-  }
-
-  // -- Cleanup Handlers --
-
-  const cleanupMessageHandler = () => {
-    if (messageHandlerRef.current && hubConnection) {
-      if (hubConnection.state === HubConnectionState.Connected) {
-        hubConnection.off(HubEventNames.ResponseStreamChunk, messageHandlerRef.current);
-      }
-      messageHandlerRef.current = null;
-    }
-  }
-
-  const cleanupHistoryHandler = () => {
-    if (historyHandlerRef.current && hubConnection) {
-      if (hubConnection.state === HubConnectionState.Connected) {
-        hubConnection.off(HubEventNames.HistoryStreamChunk, historyHandlerRef.current);
-      }
-      historyHandlerRef.current = null;
-    }
-  }
-
-  const cleanupMessageStreamEndHandler = () => {
-    if (messageStreamEndHandlerRef.current && hubConnection) {
-      if (hubConnection.state === HubConnectionState.Connected) {
-        hubConnection.off(HubEventNames.ResponseStreamEnd, messageStreamEndHandlerRef.current);
-      }
-      messageStreamEndHandlerRef.current = null;
-    }
-  }
-
-  const cleanupHistoryStreamEndHandler = () => {
-    if (historyStreamEndHandlerRef.current && hubConnection) {
-      if (hubConnection.state === HubConnectionState.Connected) {
-        hubConnection.off(HubEventNames.HistoryStreamEnd, historyStreamEndHandlerRef.current);
-      }
-      historyStreamEndHandlerRef.current = null;
-    }
-  }
+  }, [cleanupHistoryHandler]);
 
   // -- Connection Initialization --
 
@@ -163,7 +163,7 @@ export default function Chat() {
     }
 
     setIsLoading(false);
-  }, [sessionId]);
+  }, [cleanupHistoryHandler, cleanupHistoryStreamEndHandler, cleanupMessageHandler, cleanupMessageStreamEndHandler, historyHandler, historyStreamEndHandler, messageHandler, messageStreamEndHandler]);
 
   useEffect(() => {
     initializeConnection();
@@ -174,7 +174,7 @@ export default function Chat() {
         isInitializedRef.current = false;
       }
     };
-  }, [hubConnection]);
+  }, [hubConnection, initializeConnection]);
 
   // --- Reset state on session change ---
   useEffect(() => {
@@ -202,7 +202,7 @@ export default function Chat() {
         console.error("Failed to get history: ", err);
       });
     }
-  }, [sessionId, hubConnection, messages.length]);
+  }, [sessionId, hubConnection, messages.length, cleanupHistoryHandler, historyHandler, offset]);
 
   // --- Infinite scroll: load more messages on scroll up ---
   useEffect(() => {
@@ -231,7 +231,7 @@ export default function Chat() {
       preserveScrollOnPrepend(prevHeightRef.current);
       prevHeightRef.current = null;
     }
-  }, [messages, isLoading, preserveScrollOnPrepend]);
+  }, [messages, isLoading, preserveScrollOnPrepend, messagesContainerRef]);
 
   // --- Handle user submitting a message ---
   const handleSubmit = async (text?: string) => {

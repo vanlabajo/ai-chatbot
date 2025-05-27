@@ -60,7 +60,9 @@ resource "azurerm_linux_web_app" "chatbot_ui" {
     application_stack {
       node_version = "22-lts"
     }
-    app_command_line = "npm install -g pnpm && pnpm install && pnpm start"
+  }
+  app_settings = {
+    "PACKAGE_MANAGER" = "pnpm"
   }
 }
 

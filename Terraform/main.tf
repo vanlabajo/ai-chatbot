@@ -78,6 +78,7 @@ resource "azurerm_linux_web_app" "chatbot_api" {
   }
 
   app_settings = {
+    "PACKAGE_MANAGER"             = "pnpm"
     "AzureOpenAI__ApiKey"         = azurerm_cognitive_account.openai.primary_access_key
     "AzureOpenAI__Endpoint"       = azurerm_cognitive_account.openai.endpoint
     "AzureOpenAI__DeploymentName" = azurerm_cognitive_deployment.openai.name

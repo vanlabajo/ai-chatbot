@@ -1,0 +1,128 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: 8.0.x
+  DOTNET_TFM: net8.0
+  NODE_VERSION: 24.0.x
+  AZURE_WEBAPP_NAME_API: ai-chatbot-api-t7xmwp
+  AZURE_WEBAPP_NAME_UI: ai-chatbot-ui-t7xmwp
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend build
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore backend dependencies
+        run: dotnet restore
+
+      - name: Update appsettings
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: 'Backend.Api/appsettings.json, Backend.Test.IntegrationTests/appsettings.json'
+        env:
+          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+
+      - name: Build backend
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal --configuration Release
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
+
+      # Frontend build
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install PNPM
+        run: npm install -g pnpm
+
+      - name: Install frontend dependencies
+        working-directory: Frontend.Web
+        run: pnpm install
+
+      - name: Build frontend
+        working-directory: Frontend.Web
+        run: pnpm build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: |
+            Frontend.Web/.next
+            Frontend.Web/package.json
+            Frontend.Web/pnpm-lock.yaml
+            Frontend.Web/next.config.mjs
+            Frontend.Web/public
+  
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    steps:
+      - name: Update appsettings
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: Backend.Api/appsettings.json
+        env:
+          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+          AzureAd.TenantId: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AzureAd.ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AzureAd.ClientSecret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          AzureAd.Audiences__0: ${{ secrets.AZURE_AD_AUDIENCES_0 }}
+          AzureAd.Audiences__1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
+          SwaggerUI.ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          SwaggerUI.Scope: ${{ secrets.SWAGGER_UI_SCOPE}}
+
+      - name: Deploy to Azure Web App (API)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
+          package: Backend.Api
+
+  deploy-ui:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    steps:
+      - name: Create .env.production
+        working-directory: Frontend.Web
+        run: |
+          echo "NEXT_PUBLIC_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}" >> .env.production
+          echo "NEXT_PUBLIC_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}" >> .env.production
+          echo "NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}" >> .env.production
+          echo "NEXT_PUBLIC_SCOPE=${{ secrets.SWAGGER_UI_SCOPE }}" >> .env.production
+          echo "NEXT_PUBLIC_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_API_ENDPOINT }}" >> .env.production
+
+      - name: Deploy to Azure Web App (UI)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UI }}
+          package: Frontend.Web

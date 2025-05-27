@@ -78,7 +78,6 @@ jobs:
             Frontend.Web/pnpm-lock.yaml
             Frontend.Web/next.config.mjs
             Frontend.Web/public
-            Frontend.Web/node_modules
   
   deploy-api:
     runs-on: ubuntu-latest

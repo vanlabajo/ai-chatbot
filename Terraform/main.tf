@@ -58,8 +58,9 @@ resource "azurerm_linux_web_app" "chatbot_ui" {
   site_config {
     always_on = true
     application_stack {
-      node_version = "20-lts"
+      node_version = "22-lts"
     }
+    app_command_line = "npm install -g pnpm && pnpm install && pnpm start"
   }
 }
 
@@ -86,9 +87,4 @@ resource "azurerm_linux_web_app" "chatbot_api" {
     "AllowedOrigins__2"           = ""
     "AllowedOrigins__3"           = ""
   }
-}
-
-# Output the UI hostname for reference
-output "chatbot_ui_hostname" {
-  value = azurerm_linux_web_app.chatbot_ui.default_hostname
 }

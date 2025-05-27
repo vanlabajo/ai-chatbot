@@ -71,6 +71,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
+          include-hidden-files: true
           path: |
             Frontend.Web/.next
             Frontend.Web/package.json

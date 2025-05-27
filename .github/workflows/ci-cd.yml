@@ -83,6 +83,12 @@ jobs:
     needs: build
     if: github.event_name == 'push'
     steps:
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: Backend.Api
+
       - name: Update appsettings
         uses: microsoft/variable-substitution@v1
         with:
@@ -111,6 +117,12 @@ jobs:
     needs: build
     if: github.event_name == 'push'
     steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: Frontend.Web
+          
       - name: Create .env.production
         working-directory: Frontend.Web
         run: |

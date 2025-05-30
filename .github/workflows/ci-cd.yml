@@ -51,16 +51,15 @@ jobs:
           path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
 
       # Frontend build
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install frontend dependencies
         working-directory: Frontend.Web

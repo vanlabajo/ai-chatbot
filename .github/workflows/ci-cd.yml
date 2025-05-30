@@ -51,13 +51,16 @@ jobs:
           path: Backend.Api/bin/Release/${{ env.DOTNET_TFM }}/
 
       # Frontend build
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install PNPM
-        run: npm install -g pnpm
+          cache: 'pnpm'
 
       - name: Install frontend dependencies
         working-directory: Frontend.Web
@@ -67,17 +70,17 @@ jobs:
         working-directory: Frontend.Web
         run: pnpm build
 
+      - name: Package frontend
+        working-directory: Frontend.Web
+        run: pnpm deploy --filter ai-chatbot --prod --legacy pruned
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           include-hidden-files: true
           path: |
-            Frontend.Web/.next
-            Frontend.Web/package.json
-            Frontend.Web/pnpm-lock.yaml
-            Frontend.Web/next.config.mjs
-            Frontend.Web/public
+            Frontend.Web/pruned/*
   
   deploy-api:
     runs-on: ubuntu-latest

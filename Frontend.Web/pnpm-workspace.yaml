@@ -1,2 +1,6 @@
 packages:
   - '**'
+
+
+nodeLinker: pnp
+symlink: false

@@ -73,9 +73,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
-      
-      - name: Set node-linker to hoisted
-        run: pnpm config set node-linker hoisted
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -103,7 +100,7 @@ jobs:
 
       - name: Package
         working-directory: Frontend.Web
-        run: pnpm deploy --filter ai-chatbot --prod --legacy ai-chatbot-ui
+        run: pnpm deploy --filter ai-chatbot --prod --legacy --node-linker=hoisted ai-chatbot-ui
 
       - name: Deploy
         uses: azure/webapps-deploy@v3

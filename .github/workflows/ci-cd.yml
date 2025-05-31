@@ -55,6 +55,12 @@ jobs:
         working-directory: Backend.Api
         run: dotnet publish -c Release -o ai-chatbot-api
 
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: Backend.Api/ai-chatbot-api
+
       - name: Deploy
         uses: azure/webapps-deploy@v3
         with:
@@ -101,6 +107,12 @@ jobs:
       - name: Package
         working-directory: Frontend.Web
         run: pnpm deploy --filter ai-chatbot --prod --legacy ai-chatbot-ui
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: Frontend.Web/ai-chatbot-ui
 
       - name: Deploy
         uses: azure/webapps-deploy@v3

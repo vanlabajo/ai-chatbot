@@ -76,7 +76,7 @@ jobs:
         
       - name: Install dependencies
         working-directory: Frontend.Web
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Create .env.production
         working-directory: Frontend.Web

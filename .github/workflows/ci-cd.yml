@@ -100,7 +100,7 @@ jobs:
 
       - name: Package
         working-directory: Frontend.Web
-        run: pnpm deploy --filter ai-chatbot --prod --legacy --node-linker=hoisted ai-chatbot-ui
+        run: pnpm deploy --prod --node-linker=hoisted --filter ai-chatbot ai-chatbot-ui
 
       - name: Deploy
         uses: azure/webapps-deploy@v3

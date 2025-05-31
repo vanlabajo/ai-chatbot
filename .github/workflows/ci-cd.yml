@@ -79,6 +79,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+          cache-dependency-path: Frontend.Web/pnpm-lock.yaml
         
       - name: Install dependencies
         working-directory: Frontend.Web

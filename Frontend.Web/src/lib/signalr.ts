@@ -13,7 +13,7 @@ export async function getConnection(): Promise<HubConnection> {
   }
 
   connectionPromise = (async () => {
-    const apiEndpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+    const apiEndpoint = process.env.SECRET_API_ENDPOINT;
     if (!apiEndpoint) throw new Error("API endpoint is not defined");
 
     const token = await getToken();

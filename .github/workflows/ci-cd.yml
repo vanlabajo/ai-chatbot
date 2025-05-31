@@ -99,7 +99,6 @@ jobs:
             package.json \
             next.config.mjs \
             public \
-            node_modules \
             .env.production
 
       - name: Deploy

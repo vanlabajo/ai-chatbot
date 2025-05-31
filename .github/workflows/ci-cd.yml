@@ -69,21 +69,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-          cache-dependency-path: Frontend.Web/pnpm-lock.yaml
         
       - name: Install dependencies
         working-directory: Frontend.Web
-        run: pnpm install
+        run: npm install
 
       - name: Create .env.production
         working-directory: Frontend.Web
@@ -96,17 +89,16 @@ jobs:
 
       - name: Build
         working-directory: Frontend.Web
-        run: pnpm build
+        run: npm build
 
       - name: Package
         working-directory: Frontend.Web
-        run: pnpm --config.shamefully-hoist=true --config.hoist=true --config.node-linker=true --config.symlinks=false --config.shared-workspace-lockfile=false deploy --filter=ai-chatbot --prod ai-chatbot-ui
+        run: zip -r ai-chatbot-ui.zip Frontend.Web/.next Frontend.Web/package.json Frontend.Web/pnpm-lock.yaml Frontend.Web/next.config.mjs Frontend.Web/public Frontend.Web/node_modules Frontend.Web/.env.production
 
       - name: Deploy
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UI }}
-          package: Frontend.Web/ai-chatbot-ui
+          package: Frontend.Web/ai-chatbot-ui.zip
           clean: true
-          restart: true

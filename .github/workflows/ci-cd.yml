@@ -55,12 +55,6 @@ jobs:
         working-directory: Backend.Api
         run: dotnet publish -c Release -o ai-chatbot-api
 
-      - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-chatbot-api
-          path: Backend.Api/ai-chatbot-api
-
       - name: Deploy
         uses: azure/webapps-deploy@v3
         with:
@@ -79,6 +73,9 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
+      
+      - name: Set node-linker to hoisted
+        run: pnpm config set node-linker hoisted
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -107,22 +104,12 @@ jobs:
       - name: Package
         working-directory: Frontend.Web
         run: pnpm deploy --filter ai-chatbot --prod --legacy ai-chatbot-ui
-      
-      - name: Zip
-        working-directory: Frontend.Web/ai-chatbot-ui
-        run: zip -r ../ai-chatbot-ui.zip .
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-chatbot-ui
-          path: Frontend.Web/ai-chatbot-ui.zip
 
       - name: Deploy
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UI }}
-          package: Frontend.Web/ai-chatbot-ui.zip
+          package: Frontend.Web/ai-chatbot-ui
           clean: true
           restart: true

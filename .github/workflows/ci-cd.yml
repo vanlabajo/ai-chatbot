@@ -97,6 +97,7 @@ jobs:
           zip -r ai-chatbot-ui.zip \
             .next \
             package.json \
+            pnpm-lock.yaml \
             next.config.mjs \
             public \
             .env.production

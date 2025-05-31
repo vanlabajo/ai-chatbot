@@ -89,11 +89,18 @@ jobs:
 
       - name: Build
         working-directory: Frontend.Web
-        run: npm build
+        run: npm run build
 
       - name: Package
         working-directory: Frontend.Web
-        run: zip -r ai-chatbot-ui.zip Frontend.Web/.next Frontend.Web/package.json Frontend.Web/pnpm-lock.yaml Frontend.Web/next.config.mjs Frontend.Web/public Frontend.Web/node_modules Frontend.Web/.env.production
+        run: | 
+          zip -r ai-chatbot-ui.zip \
+            .next \
+            package.json \
+            next.config.mjs \
+            public \
+            node_modules \
+            .env.production
 
       - name: Deploy
         uses: azure/webapps-deploy@v3

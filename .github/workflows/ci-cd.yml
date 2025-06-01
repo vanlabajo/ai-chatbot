@@ -40,8 +40,8 @@ jobs:
           AzureAd.TenantId: ${{ secrets.AZURE_AD_TENANT_ID }}
           AzureAd.ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
           AzureAd.ClientSecret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
-          AzureAd.Audiences__0: ${{ secrets.AZURE_AD_AUDIENCES_0 }}
-          AzureAd.Audiences__1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
+          AzureAd.Audiences.0: ${{ secrets.AZURE_AD_AUDIENCES_0 }}
+          AzureAd.Audiences.1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
           SwaggerUI.ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
           SwaggerUI.Scope: ${{ secrets.SWAGGER_UI_SCOPE}}
 

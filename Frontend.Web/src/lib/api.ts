@@ -2,7 +2,7 @@ import { getToken } from "@/lib/msal";
 import { ChatSession } from "./definitions";
 
 export async function getSessions(): Promise<ChatSession[]> {
-  const endpoint = process.env.SECRET_API_ENDPOINT + "/api/chat/sessions";
+  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT + "/api/chat/sessions";
   const token = await getToken();
 
   const res = await fetch(endpoint, {

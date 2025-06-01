@@ -77,19 +77,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set App Service settings from GitHub secrets
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}
-          app-settings-json: |
-            [
-              { "name": "NEXT_PUBLIC_CLIENT_ID", "value": "${{ secrets.AZURE_AD_CLIENT_ID }}" },
-              { "name": "NEXT_PUBLIC_TENANT_ID", "value": "${{ secrets.AZURE_AD_TENANT_ID }}" },
-              { "name": "NEXT_PUBLIC_REDIRECT_URI", "value": "${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}" },
-              { "name": "NEXT_PUBLIC_SCOPE", "value": "${{ secrets.SWAGGER_UI_SCOPE }}" },
-              { "name": "SECRET_API_ENDPOINT", "value": "${{ secrets.NEXT_PUBLIC_API_ENDPOINT }}" }
-            ]
-
       - name: Azure Container Registry Login
         uses: azure/docker-login@v2
         with:
@@ -100,7 +87,14 @@ jobs:
       - name: Build and push Docker image
         working-directory: Frontend.Web
         run: |
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
+          docker build \
+            --build-arg NEXT_PUBLIC_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }} \
+            --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }} \
+            --build-arg NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }} \
+            --build-arg NEXT_PUBLIC_SCOPE=${{ secrets.SWAGGER_UI_SCOPE }} \
+            --build-arg NEXT_PUBLIC_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_API_ENDPOINT }} \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }}
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest
 

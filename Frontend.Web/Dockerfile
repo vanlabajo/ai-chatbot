@@ -5,6 +5,19 @@ WORKDIR /app
 # Build stage
 FROM base AS builder
 
+# Create the env file (these should come from --build-arg or ARGs)
+ARG NEXT_PUBLIC_CLIENT_ID
+ARG NEXT_PUBLIC_TENANT_ID
+ARG NEXT_PUBLIC_REDIRECT_URI
+ARG NEXT_PUBLIC_SCOPE
+ARG NEXT_PUBLIC_API_ENDPOINT
+
+RUN echo "NEXT_PUBLIC_CLIENT_ID=$NEXT_PUBLIC_CLIENT_ID" >> .env.production && \
+  echo "NEXT_PUBLIC_TENANT_ID=$NEXT_PUBLIC_TENANT_ID" >> .env.production && \
+  echo "NEXT_PUBLIC_REDIRECT_URI=$NEXT_PUBLIC_REDIRECT_URI" >> .env.production && \
+  echo "NEXT_PUBLIC_SCOPE=$NEXT_PUBLIC_SCOPE" >> .env.production && \
+  echo "NEXT_PUBLIC_API_ENDPOINT=$NEXT_PUBLIC_API_ENDPOINT" >> .env.production
+
 COPY package.json pnpm-lock.yaml* ./
 RUN npm install -g pnpm && pnpm install
 

@@ -105,9 +105,11 @@ resource "azurerm_linux_web_app" "chatbot_ui" {
   service_plan_id     = azurerm_service_plan.chatbot_plan.id
 
   site_config {
-    always_on = true
+    always_on                                     = true
+    container_registry_managed_identity_client_id = azurerm_user_assigned_identity.chatbot_ui_identity.client_id
+    container_registry_use_managed_identity       = true
     application_stack {
-      docker_image_name   = "${azurerm_container_registry.chatbot_acr.name}.azurecr.io/ai-chatbot-ui:latest"
+      docker_image_name   = "ai-chatbot-ui:latest"
       docker_registry_url = "https://${azurerm_container_registry.chatbot_acr.login_server}"
     }
   }

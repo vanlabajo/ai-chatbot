@@ -48,6 +48,9 @@ jobs:
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "${{ env.API_ARTIFACT_NAME }}"
             })[0];
+            if (!matchArtifact) {
+              throw new Error("Artifact not found for the specified workflow run.");
+            }
             let download = await github.rest.actions.downloadArtifact({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -65,6 +68,29 @@ jobs:
       - name: Unzip API artifact
         run: unzip "${{ env.API_ARTIFACT_NAME }}.zip" -d "${{ runner.temp }}/artifacts"
         working-directory: ${{ runner.temp }}/artifacts
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set App Service environment variables
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
+          app-settings-json: |
+            [
+              { "name": "AzureOpenAI__Endpoint", "value": "${{ secrets.AZURE_OPENAI_ENDPOINT }}" },
+              { "name": "AzureOpenAI__ApiKey", "value": "${{ secrets.AZURE_OPENAI_APIKEY }}" },
+              { "name": "AzureOpenAI__DeploymentName", "value": "${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}" },
+              { "name": "AzureAd__TenantId", "value": "${{ secrets.AZURE_AD_TENANT_ID }}" },
+              { "name": "AzureAd__ClientId", "value": "${{ secrets.AZURE_AD_CLIENT_ID }}" },
+              { "name": "AzureAd__ClientSecret", "value": "${{ secrets.AZURE_AD_CLIENT_SECRET }}" },
+              { "name": "AzureAd__Audiences__0", "value": "${{ secrets.AZURE_AD_AUDIENCES_0 }}" },
+              { "name": "AzureAd__Audiences__1", "value": "${{ secrets.AZURE_AD_AUDIENCES_1 }}" },
+              { "name": "SwaggerUI__ClientId", "value": "${{ secrets.AZURE_AD_CLIENT_ID }}" },
+              { "name": "SwaggerUI__Scope", "value": "${{ secrets.SWAGGER_UI_SCOPE }}" }
+            ]
 
       - name: Deploy API
         uses: azure/webapps-deploy@v3
@@ -100,6 +126,9 @@ jobs:
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "${{ env.UI_ARTIFACT_NAME }}"
             })[0];
+            if (!matchArtifact) {
+              throw new Error("Artifact not found for the specified workflow run.");
+            }
             let download = await github.rest.actions.downloadArtifact({
                owner: context.repo.owner,
                repo: context.repo.repo,

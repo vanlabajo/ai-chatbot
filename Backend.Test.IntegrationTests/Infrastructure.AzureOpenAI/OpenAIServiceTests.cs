@@ -18,6 +18,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             _configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .AddUserSecrets<OpenAIServiceTests>()
+                .AddEnvironmentVariables()
                 .Build();
         }
 

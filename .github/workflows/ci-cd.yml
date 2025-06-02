@@ -56,6 +56,7 @@ jobs:
         run: dotnet publish -c Release -o ai-chatbot-api
 
       - name: Deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
@@ -84,7 +85,7 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         working-directory: Frontend.Web
         run: |
           docker build \
@@ -93,13 +94,19 @@ jobs:
             --build-arg NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }} \
             --build-arg NEXT_PUBLIC_SCOPE=${{ secrets.SWAGGER_UI_SCOPE }} \
             --build-arg NEXT_PUBLIC_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_API_ENDPOINT }} \
-            --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }} \
+            --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING="${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}" \
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} \
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
+
+      - name: Push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: Frontend.Web
+        run: |
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }}
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest
 
       - name: Update App Service to use new image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}

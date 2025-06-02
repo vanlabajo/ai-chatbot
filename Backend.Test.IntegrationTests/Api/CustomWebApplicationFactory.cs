@@ -20,6 +20,7 @@ namespace Backend.Test.IntegrationTests.Api
             {
                 config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
                 config.AddUserSecrets<CustomWebApplicationFactory>();
+                config.AddEnvironmentVariables();
             });
 
             builder.ConfigureTestServices(services =>

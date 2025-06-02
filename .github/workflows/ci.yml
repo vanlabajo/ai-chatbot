@@ -25,20 +25,22 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Update appsettings
-        uses: microsoft/variable-substitution@v1
-        with:
-          files: 'Backend.Test.IntegrationTests/appsettings.json'
-        env:
-          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
-          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
-
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
         run: dotnet test --no-build --verbosity normal --configuration Release
+        env:
+          AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI__DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+          AzureAd__TenantId: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AzureAd__ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AzureAd__ClientSecret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          AzureAd__Audiences__0: ${{ secrets.AZURE_AD_AUDIENCES_0 }}
+          AzureAd__Audiences__1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
+          SwaggerUI__ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          SwaggerUI__Scope: ${{ secrets.SWAGGER_UI_SCOPE}}
 
       - name: Publish
         working-directory: Backend.Api

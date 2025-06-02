@@ -49,7 +49,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(opt =>
 {
-    opt.SwaggerDoc("v1.0", new OpenApiInfo { Title = "AI Chatbot", Version = "v1.0" });
+    opt.SwaggerDoc("v1.1", new OpenApiInfo { Title = "AI Chatbot", Version = "v1.1" });
     opt.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
     {
         Description = "OAuth2.0 Auth Code with PKCE",
@@ -102,7 +102,7 @@ if (!app.Environment.IsProduction())
     app.UseSwagger();
     app.UseSwaggerUI(opt =>
     {
-        opt.SwaggerEndpoint("/swagger/v1.0/swagger.json", "AI Chatbot v1.0");
+        opt.SwaggerEndpoint("/swagger/v1.1/swagger.json", "AI Chatbot v1.1");
         opt.OAuthClientId(builder.Configuration["AzureAd:ClientId"]);
         opt.OAuthScopeSeparator(" ");
         opt.OAuthUsePkce();

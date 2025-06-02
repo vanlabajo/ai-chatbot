@@ -64,13 +64,14 @@ resource "azurerm_linux_web_app" "chatbot_api" {
   }
 
   app_settings = {
-    "AzureOpenAI__ApiKey"         = azurerm_cognitive_account.openai.primary_access_key
-    "AzureOpenAI__Endpoint"       = azurerm_cognitive_account.openai.endpoint
-    "AzureOpenAI__DeploymentName" = azurerm_cognitive_deployment.openai.name
-    "AllowedOrigins__0"           = "https://${azurerm_linux_web_app.chatbot_ui.default_hostname}"
-    "AllowedOrigins__1"           = ""
-    "AllowedOrigins__2"           = ""
-    "AllowedOrigins__3"           = ""
+    "AzureOpenAI__ApiKey"                   = azurerm_cognitive_account.openai.primary_access_key
+    "AzureOpenAI__Endpoint"                 = azurerm_cognitive_account.openai.endpoint
+    "AzureOpenAI__DeploymentName"           = azurerm_cognitive_deployment.openai.name
+    "AllowedOrigins__0"                     = "https://${azurerm_linux_web_app.chatbot_ui.default_hostname}"
+    "AllowedOrigins__1"                     = ""
+    "AllowedOrigins__2"                     = ""
+    "AllowedOrigins__3"                     = ""
+    "ApplicationInsights__ConnectionString" = azurerm_application_insights.chatbot_insights.connection_string
   }
 }
 
@@ -118,4 +119,14 @@ resource "azurerm_linux_web_app" "chatbot_ui" {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.chatbot_ui_identity.id]
   }
+}
+
+# Application Insights
+resource "azurerm_application_insights" "chatbot_insights" {
+  name                = "ai-chatbot-insights-${random_string.random.result}"
+  location            = azurerm_resource_group.ai_rg.location
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  application_type    = "web"
+  retention_in_days   = 30
+  sampling_percentage = 25
 }

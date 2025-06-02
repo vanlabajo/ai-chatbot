@@ -93,6 +93,7 @@ jobs:
             --build-arg NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }} \
             --build-arg NEXT_PUBLIC_SCOPE=${{ secrets.SWAGGER_UI_SCOPE }} \
             --build-arg NEXT_PUBLIC_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_API_ENDPOINT }} \
+            --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }} \
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} \
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }}

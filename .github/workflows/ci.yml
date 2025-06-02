@@ -49,7 +49,7 @@ jobs:
       - name: Upload API artifact
         uses: actions/upload-artifact@v4
         with:
-          name: api-publish
+          name: backend
           path: Backend.Api/ai-chatbot-api
 
   build-ui:
@@ -85,11 +85,14 @@ jobs:
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} \
             -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
 
-      - name: Upload UI image tag
-        run: echo "${{ github.sha }}" > image-tag.txt
-
-      - name: Upload UI image tag artifact
-        uses: actions/upload-artifact@v4
+      - name: Save image tag
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          mkdir -p ./image
+          echo $IMAGE_TAG > ./image/image-tag
+          
+      - uses: actions/upload-artifact@v4
         with:
-          name: ui-image-tag
-          path: image-tag.txt
+          name: frontend
+          path: image/

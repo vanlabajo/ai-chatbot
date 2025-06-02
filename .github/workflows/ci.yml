@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: 8.0.x
+  NODE_VERSION: 24.0.x
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Update appsettings
+        uses: microsoft/variable-substitution@v1
+        with:
+          files: 'Backend.Test.IntegrationTests/appsettings.json'
+        env:
+          AzureOpenAI.Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI.ApiKey: ${{ secrets.AZURE_OPENAI_APIKEY }}
+          AzureOpenAI.DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal --configuration Release
+
+      - name: Publish
+        working-directory: Backend.Api
+        run: dotnet publish -c Release -o ai-chatbot-api
+
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: Backend.Api/ai-chatbot-api
+
+  build-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3      
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure Container Registry Login
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build Docker image
+        working-directory: Frontend.Web
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }} \
+            --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }} \
+            --build-arg NEXT_PUBLIC_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_REDIRECT_URI }} \
+            --build-arg NEXT_PUBLIC_SCOPE=${{ secrets.SWAGGER_UI_SCOPE }} \
+            --build-arg NEXT_PUBLIC_API_ENDPOINT=${{ secrets.NEXT_PUBLIC_API_ENDPOINT }} \
+            --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING="${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}" \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ github.sha }} \
+            -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:latest .
+
+      - name: Upload UI image tag
+        run: echo "${{ github.sha }}" > image-tag.txt
+
+      - name: Upload UI image tag artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-image-tag
+          path: image-tag.txt

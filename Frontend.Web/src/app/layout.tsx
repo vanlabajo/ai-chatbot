@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/Sidebar";
 import { MsalWrapper } from "@/components/ui/auth/MsalWrapper";
-import { AppInsightsProvider } from "@/components/ui/log/AppInsightsProvider";
+import { AppInsightsProvider } from "@/components/ui/logger/AppInsightsProvider";
 import { AppSidebar } from "@/components/ui/navigation/AppSidebar";
 import { Breadcrumbs } from "@/components/ui/navigation/Breadcrumbs";
 import type { Metadata } from "next";

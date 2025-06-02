@@ -1,0 +1,157 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_workflow_run_id:
+        description: 'Workflow run ID for API build'
+        required: true
+        default: ''
+      ui_workflow_run_id:
+        description: 'Workflow run ID for UI build'
+        required: true
+        default: ''
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+env:
+  AZURE_WEBAPP_NAME_API: ai-chatbot-api-t7xmwp
+  AZURE_WEBAPP_NAME_UI: ai-chatbot-ui-t7xmwp
+  UI_ARTIFACT_NAME: frontend
+  API_ARTIFACT_NAME: backend
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || inputs.api_workflow_run_id != '' }}
+    steps:
+      - name: Download API artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let workflowRunId = null;
+            if (context.payload.workflow_run && context.payload.workflow_run.id) {
+              workflowRunId = context.payload.workflow_run.id;
+            } else if (github.event.inputs && github.event.inputs.api_workflow_run_id) {
+              workflowRunId = github.event.inputs.api_workflow_run_id;
+            }
+            if (!workflowRunId) {
+              throw new Error("No workflow run ID provided.");
+            }
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: workflowRunId,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "${{ env.API_ARTIFACT_NAME }}"
+            })[0];
+            if (!matchArtifact) {
+              throw new Error("Artifact not found for the specified workflow run.");
+            }
+            let download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: matchArtifact.id,
+              archive_format: 'zip',
+            });
+            const fs = require('fs');
+            const path = require('path');
+            const temp = '${{ runner.temp }}/artifacts';
+            if (!fs.existsSync(temp)){
+              fs.mkdirSync(temp, { recursive: true });
+            }
+            fs.writeFileSync(path.join(temp, '${{ env.API_ARTIFACT_NAME }}.zip'), Buffer.from(download.data));
+
+      - name: Unzip API artifact
+        run: unzip "${{ env.API_ARTIFACT_NAME }}.zip" -d "${{ runner.temp }}/artifacts"
+        working-directory: ${{ runner.temp }}/artifacts
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set App Service environment variables
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
+          app-settings-json: |
+            [
+              { "name": "AzureOpenAI__Endpoint", "value": "${{ secrets.AZURE_OPENAI_ENDPOINT }}" },
+              { "name": "AzureOpenAI__ApiKey", "value": "${{ secrets.AZURE_OPENAI_APIKEY }}" },
+              { "name": "AzureOpenAI__DeploymentName", "value": "${{ secrets.AZURE_OPENAI_DEPLOYMENTNAME }}" },
+              { "name": "AzureAd__TenantId", "value": "${{ secrets.AZURE_AD_TENANT_ID }}" },
+              { "name": "AzureAd__ClientId", "value": "${{ secrets.AZURE_AD_CLIENT_ID }}" },
+              { "name": "AzureAd__ClientSecret", "value": "${{ secrets.AZURE_AD_CLIENT_SECRET }}" },
+              { "name": "AzureAd__Audiences__0", "value": "${{ secrets.AZURE_AD_AUDIENCES_0 }}" },
+              { "name": "AzureAd__Audiences__1", "value": "${{ secrets.AZURE_AD_AUDIENCES_1 }}" },
+              { "name": "SwaggerUI__ClientId", "value": "${{ secrets.AZURE_AD_CLIENT_ID }}" },
+              { "name": "SwaggerUI__Scope", "value": "${{ secrets.SWAGGER_UI_SCOPE }}" }
+            ]
+
+      - name: Deploy API
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
+          package: ${{ runner.temp }}/artifacts/ai-chatbot-api
+
+  deploy-ui:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || inputs.ui_workflow_run_id != '' }}
+    steps:
+      - name: Download artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let workflowRunId = null;
+            if (context.payload.workflow_run && context.payload.workflow_run.id) {
+              workflowRunId = context.payload.workflow_run.id;
+            } else if (context.payload.inputs && context.payload.inputs.ui_workflow_run_id) {
+              workflowRunId = context.payload.inputs.ui_workflow_run_id;
+            } else if (github.event.inputs && github.event.inputs.ui_workflow_run_id) {
+              workflowRunId = github.event.inputs.ui_workflow_run_id;
+            }
+            if (!workflowRunId) {
+              throw new Error("No workflow run ID provided.");
+            }
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: workflowRunId,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "${{ env.UI_ARTIFACT_NAME }}"
+            })[0];
+            if (!matchArtifact) {
+              throw new Error("Artifact not found for the specified workflow run.");
+            }
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            const fs = require('fs');
+            const path = require('path');
+            const temp = '${{ runner.temp }}/artifacts';
+            if (!fs.existsSync(temp)){
+              fs.mkdirSync(temp);
+            }
+            fs.writeFileSync(path.join(temp, '${{ env.UI_ARTIFACT_NAME }}.zip'), Buffer.from(download.data));
+
+      - name: Unzip artifact
+        run: unzip "${{ env.UI_ARTIFACT_NAME }}.zip" -d "${{ runner.temp }}/artifacts"
+
+      - name: Set image tag variable
+        run: echo "IMAGE_TAG=$(cat ${RUNNER_TEMP}/artifacts/image-tag)" >> $GITHUB_ENV
+
+      - name: Update App Service to use new image
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME_UI }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_UI }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/ai-chatbot-ui:${{ env.IMAGE_TAG }}

@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Backend.Infrastructure.AzureOpenAI;
 using Backend.Infrastructure.Tiktoken;
@@ -48,10 +49,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(result);
                 Assert.NotEqual(string.Empty, result);
             }
-            catch (Exception ex)
-            {
-                Assert.Contains("OpenAI rate limit exceeded.", ex.Message, StringComparison.OrdinalIgnoreCase);
-            }
+            catch (OpenAIRateLimitException) { }
         }
 
         [Fact]
@@ -83,11 +81,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(responseBuilder.ToString());
                 Assert.NotEqual(string.Empty, responseBuilder.ToString());
             }
-            catch (Exception ex)
-            {
-                // Assert
-                Assert.Contains("OpenAI rate limit exceeded.", ex.Message);
-            }
+            catch (OpenAIRateLimitException) { }
         }
     }
 }

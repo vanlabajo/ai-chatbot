@@ -2,6 +2,7 @@
 using Backend.Core;
 using Backend.Core.Exceptions;
 using OpenAI.Chat;
+using System.ClientModel;
 
 namespace Backend.Infrastructure.AzureOpenAI
 {
@@ -14,14 +15,38 @@ namespace Backend.Infrastructure.AzureOpenAI
 
         public async Task<string> GetChatResponseAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
-            var chatMessages = PrepareChatMessages(messages);
-            return await GetChatResponseAsync(chatMessages);
+            var chatMessages = PrepareChatMessages(messages);            
+
+            try
+            {
+                return await GetChatResponseAsync(chatMessages);
+            }
+            catch(Exception ex)
+            {
+                if (ex.Message.Contains("HTTP 429"))
+                {
+                    throw new OpenAIRateLimitException();
+                }
+                else throw;
+            }
         }
 
         public async IAsyncEnumerable<string> GetChatResponseStreamingAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
             var chatMessages = PrepareChatMessages(messages);
-            var completionUpdates = _chatClient.CompleteChatStreamingAsync(chatMessages) ?? throw new NotFoundException("Chat response not found.");
+            AsyncCollectionResult<StreamingChatCompletionUpdate> completionUpdates;
+            try
+            {
+                completionUpdates = _chatClient.CompleteChatStreamingAsync(chatMessages) ?? throw new NotFoundException("Chat response not found.");
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("HTTP 429"))
+                {
+                    throw new OpenAIRateLimitException();
+                }
+                else throw;
+            }
             await foreach (var completionUpdate in completionUpdates)
             {
                 if (completionUpdate == null || completionUpdate.ContentUpdate == null)
@@ -37,7 +62,7 @@ namespace Backend.Infrastructure.AzureOpenAI
                 {
                     yield return contentPart.Text;
                 }
-            }
+            }            
         }
 
         private List<ChatMessage> PrepareChatMessages(IEnumerable<Core.Models.ChatMessage> messages)

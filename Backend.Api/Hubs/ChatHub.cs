@@ -13,6 +13,7 @@ namespace Backend.Api.Hubs
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
+        private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         public async Task SendMessage(string message, string? sessionId = null)
         {
@@ -35,22 +36,34 @@ namespace Backend.Api.Hubs
             await Clients.Caller.SendAsync(HubEventNames.ResponseStreamStart);
 
             var aiResponseBuilder = new StringBuilder();
-            await foreach (var response in _openAiService.GetChatResponseStreamingAsync(session.Messages))
+            string aiResponse;
+            try
             {
-                aiResponseBuilder.Append(response);
-                await Clients.Caller.SendAsync(HubEventNames.ResponseStreamChunk, response);
+                await foreach (var response in _openAiService.GetChatResponseStreamingAsync(session.Messages))
+                {
+                    aiResponseBuilder.Append(response);
+                    await Clients.Caller.SendAsync(HubEventNames.ResponseStreamChunk, response);
+                }
+                aiResponse = aiResponseBuilder.ToString();
             }
-
-            var aiResponse = aiResponseBuilder.ToString();
+            catch (OpenAIRateLimitException)
+            {
+                aiResponse = RateLimitMessage;
+                await Clients.Caller.SendAsync(HubEventNames.ResponseStreamChunk, aiResponse);
+            }
             session.Messages.Add(new ChatMessage { Role = ChatRole.Assistant, Content = aiResponse });
 
-            // Generate title if missing
-            if (string.IsNullOrEmpty(session.Title))
+            // Generate title if missing, but skip if rate limited
+            try
             {
-                session.Title = await GenerateConversationTitle(session.Messages);
-                sessionUpdate.Title = session.Title;
-                await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
+                if (string.IsNullOrEmpty(session.Title))
+                {
+                    session.Title = await GenerateConversationTitle(session.Messages);
+                    sessionUpdate.Title = session.Title;
+                    await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
+                }
             }
+            catch (OpenAIRateLimitException) { }
 
             await Clients.Caller.SendAsync(HubEventNames.ResponseStreamEnd);
             await _cacheService.SetAsync($"session-{user}", sessions);

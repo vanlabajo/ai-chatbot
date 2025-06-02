@@ -50,7 +50,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
             }
             catch (Exception ex)
             {
-                Assert.Contains("HTTP 429", ex.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("OpenAI rate limit exceeded.", ex.Message, StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -83,12 +83,10 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(responseBuilder.ToString());
                 Assert.NotEqual(string.Empty, responseBuilder.ToString());
             }
-            catch (RequestFailedException ex)
+            catch (Exception ex)
             {
                 // Assert
-                Assert.Equal(429, ex.Status);
-                // Optionally check the message
-                Assert.Contains("Too Many Requests", ex.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("OpenAI rate limit exceeded.", ex.Message);
             }
         }
     }

@@ -88,6 +88,7 @@ jobs:
 
       - name: Unzip artifact
         run: unzip ui.zip -d "${{ runner.temp }}/artifacts"
+        working-directory: ${{ runner.temp }}/artifacts
 
       - name: Set image tag variable
         run: echo "IMAGE_TAG=$(cat ${RUNNER_TEMP}/artifacts/image-tag)" >> $GITHUB_ENV

@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
+using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Backend.Infrastructure.AzureOpenAI;
 using Backend.Infrastructure.Tiktoken;
@@ -48,10 +49,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(result);
                 Assert.NotEqual(string.Empty, result);
             }
-            catch (Exception ex)
-            {
-                Assert.Contains("HTTP 429", ex.Message, StringComparison.OrdinalIgnoreCase);
-            }
+            catch (OpenAIRateLimitException) { }
         }
 
         [Fact]
@@ -83,13 +81,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureOpenAI
                 Assert.NotNull(responseBuilder.ToString());
                 Assert.NotEqual(string.Empty, responseBuilder.ToString());
             }
-            catch (RequestFailedException ex)
-            {
-                // Assert
-                Assert.Equal(429, ex.Status);
-                // Optionally check the message
-                Assert.Contains("Too Many Requests", ex.Message, StringComparison.OrdinalIgnoreCase);
-            }
+            catch (OpenAIRateLimitException) { }
         }
     }
 }

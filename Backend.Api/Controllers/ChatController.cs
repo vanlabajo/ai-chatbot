@@ -1,5 +1,6 @@
 ﻿using Backend.Core;
 using Backend.Core.DTOs;
+using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,7 @@ namespace Backend.Api.Controllers
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
+        private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         [HttpPost]
         [ProducesResponseType(typeof(ChatResponse), StatusCodes.Status200OK)]
@@ -36,15 +38,28 @@ namespace Backend.Api.Controllers
             // Add the user's message to the session
             session.Messages.Add(new ChatMessage { Role = ChatRole.User, Content = request.Message });
 
-            // Generate the assistant's response
-            var assistantResponse = await _openAiService.GetChatResponseAsync(session.Messages);
+            string assistantResponse;
+            try
+            {
+                // Generate the assistant's response
+                assistantResponse = await _openAiService.GetChatResponseAsync(session.Messages);
+            }
+            catch (OpenAIRateLimitException)
+            {
+                assistantResponse = RateLimitMessage;
+            }
+
             session.Messages.Add(new ChatMessage { Role = ChatRole.Assistant, Content = assistantResponse });
 
-            // Generate a title for the session if it doesn't already exist
-            if (string.IsNullOrEmpty(session.Title))
+            try
             {
-                session.Title = await GenerateConversationTitle(session.Messages, cancellationToken);
+                // Generate a title for the session if it doesn't already exist
+                if (string.IsNullOrEmpty(session.Title))
+                {
+                    session.Title = await GenerateConversationTitle(session.Messages, cancellationToken);
+                }
             }
+            catch (OpenAIRateLimitException) { }
 
             // Save the updated sessions list back to the cache
             await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);

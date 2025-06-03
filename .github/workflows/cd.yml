@@ -39,39 +39,52 @@ jobs:
           script: |
             const artifactName = process.env.UI_ARTIFACT_NAME;
             const workflowRunId = process.env.WORKFLOW_RUN_ID;
+            console.log("Artifact name:", artifactName);
+            console.log("Workflow run ID:", workflowRunId);
+
             if (!artifactName) {
               throw new Error("No artifact name provided.");
             }
             if (!workflowRunId) {
               throw new Error("No workflow run ID provided.");
             }
+
             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,
               repo: context.repo.repo,
               run_id: workflowRunId,
             });
+            console.log("Artifacts found:", allArtifacts.data.artifacts.map(a => a.name));
+
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
               return artifact.name == artifactName
             })[0];
             if (!matchArtifact) {
               throw new Error("Artifact not found for the specified workflow run.");
             }
+            console.log("Matched artifact:", matchArtifact);
+
             let download = await github.rest.actions.downloadArtifact({
               owner: context.repo.owner,
               repo: context.repo.repo,
               artifact_id: matchArtifact.id,
               archive_format: 'zip',
             });
+            console.log("Download data type:", typeof download.data);
+            console.log("Download data length:", download.data.length);
+
             const fs = require('fs');
             const path = require('path');
             const temp = '${{ runner.temp }}/artifacts';
             if (!fs.existsSync(temp)){
               fs.mkdirSync(temp, { recursive: true });
+              console.log("Created directory:", temp);
+            } else {
+              console.log("Directory already exists:", temp);
             }
-            fs.writeFileSync(path.join(temp, 'ui.zip'), Buffer.from(download.data));
-
-      - name: List directory
-        run: ls -a
+            const zipPath = path.join(temp, 'ui.zip');
+            fs.writeFileSync(zipPath, Buffer.from(download.data));
+            console.log("Wrote zip file:", zipPath, "Size:", fs.statSync(zipPath).size);
 
       - name: Unzip artifact
         run: unzip ui.zip -d "${{ runner.temp }}/artifacts"

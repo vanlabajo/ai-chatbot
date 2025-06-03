@@ -116,7 +116,7 @@ jobs:
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || inputs.ui_workflow_run_id || '' }}
         with:
           script: |
-            const artifactName = process.env.API_ARTIFACT_NAME;
+            const artifactName = process.env.UI_ARTIFACT_NAME;
             const workflowRunId = process.env.WORKFLOW_RUN_ID;
             if (!artifactName) {
               throw new Error("No artifact name provided.");

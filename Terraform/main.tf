@@ -20,7 +20,7 @@ resource "azurerm_resource_group" "ai_rg" {
 # OpenAI Cognitive Services
 resource "azurerm_cognitive_account" "openai" {
   name                = "openai-chatbot-${random_string.random.result}"
-  location            = azurerm_resource_group.ai_rg.location
+  location            = "East US 2"
   resource_group_name = azurerm_resource_group.ai_rg.name
   kind                = "OpenAI"
   sku_name            = "S0"
@@ -32,11 +32,11 @@ resource "azurerm_cognitive_deployment" "openai" {
   cognitive_account_id = azurerm_cognitive_account.openai.id
   model {
     format = "OpenAI"
-    name   = "gpt-4"
+    name   = "model-router"
   }
 
   sku {
-    name = "Standard"
+    name = "GlobalStandard"
   }
 }
 
@@ -121,12 +121,21 @@ resource "azurerm_linux_web_app" "chatbot_ui" {
   }
 }
 
+# Log Analytics Workspace
+resource "azurerm_log_analytics_workspace" "chatbot_log_analytics" {
+  name                = "chatbot-log-analytics-${random_string.random.result}"
+  location            = azurerm_resource_group.ai_rg.location
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
 # Application Insights
 resource "azurerm_application_insights" "chatbot_insights" {
   name                = "ai-chatbot-insights-${random_string.random.result}"
   location            = azurerm_resource_group.ai_rg.location
   resource_group_name = azurerm_resource_group.ai_rg.name
+  workspace_id        = azurerm_log_analytics_workspace.chatbot_log_analytics.id
   application_type    = "web"
-  retention_in_days   = 30
   sampling_percentage = 25
 }

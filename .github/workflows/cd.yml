@@ -70,6 +70,9 @@ jobs:
             }
             fs.writeFileSync(path.join(temp, 'ui.zip'), Buffer.from(download.data));
 
+      - name: List directory
+        run: ls -a
+
       - name: Unzip artifact
         run: unzip ui.zip -d "${{ runner.temp }}/artifacts"
 

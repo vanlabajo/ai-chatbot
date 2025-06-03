@@ -25,17 +25,21 @@ env:
 jobs:
   deploy-api:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     if: ${{ github.event.workflow_run.conclusion == 'success' || inputs.api_workflow_run_id != '' }}
     steps:
       - name: Download API artifact
         uses: actions/github-script@v7
+        env:
+          API_ARTIFACT_NAME: ${{ env.API_ARTIFACT_NAME }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || inputs.api_workflow_run_id || '' }}
         with:
           script: |
-            let workflowRunId = null;
-            if (context.payload.workflow_run && context.payload.workflow_run.id) {
-              workflowRunId = context.payload.workflow_run.id;
-            } else if (github.event.inputs && github.event.inputs.api_workflow_run_id) {
-              workflowRunId = github.event.inputs.api_workflow_run_id;
+            const artifactName = process.env.API_ARTIFACT_NAME;
+            const workflowRunId = process.env.WORKFLOW_RUN_ID;
+            if (!artifactName) {
+              throw new Error("No artifact name provided.");
             }
             if (!workflowRunId) {
               throw new Error("No workflow run ID provided.");
@@ -46,7 +50,7 @@ jobs:
               run_id: workflowRunId,
             });
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "${{ env.API_ARTIFACT_NAME }}"
+              return artifact.name == artifactName
             })[0];
             if (!matchArtifact) {
               throw new Error("Artifact not found for the specified workflow run.");
@@ -63,10 +67,10 @@ jobs:
             if (!fs.existsSync(temp)){
               fs.mkdirSync(temp, { recursive: true });
             }
-            fs.writeFileSync(path.join(temp, '${{ env.API_ARTIFACT_NAME }}.zip'), Buffer.from(download.data));
+            fs.writeFileSync(path.join(temp, 'api.zip'), Buffer.from(download.data));
 
       - name: Unzip API artifact
-        run: unzip "${{ env.API_ARTIFACT_NAME }}.zip" -d "${{ runner.temp }}/artifacts"
+        run: unzip api.zip -d "${{ runner.temp }}/artifacts"
         working-directory: ${{ runner.temp }}/artifacts
 
       - name: Azure Login
@@ -97,23 +101,25 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME_API }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
-          package: ${{ runner.temp }}/artifacts/ai-chatbot-api
+          package: ${{ runner.temp }}/artifacts
 
   deploy-ui:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     if: ${{ github.event.workflow_run.conclusion == 'success' || inputs.ui_workflow_run_id != '' }}
     steps:
       - name: Download artifact
         uses: actions/github-script@v7
+        env:
+          UI_ARTIFACT_NAME: ${{ env.UI_ARTIFACT_NAME }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || inputs.ui_workflow_run_id || '' }}
         with:
           script: |
-            let workflowRunId = null;
-            if (context.payload.workflow_run && context.payload.workflow_run.id) {
-              workflowRunId = context.payload.workflow_run.id;
-            } else if (context.payload.inputs && context.payload.inputs.ui_workflow_run_id) {
-              workflowRunId = context.payload.inputs.ui_workflow_run_id;
-            } else if (github.event.inputs && github.event.inputs.ui_workflow_run_id) {
-              workflowRunId = github.event.inputs.ui_workflow_run_id;
+            const artifactName = process.env.API_ARTIFACT_NAME;
+            const workflowRunId = process.env.WORKFLOW_RUN_ID;
+            if (!artifactName) {
+              throw new Error("No artifact name provided.");
             }
             if (!workflowRunId) {
               throw new Error("No workflow run ID provided.");
@@ -124,7 +130,7 @@ jobs:
                run_id: workflowRunId,
             });
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "${{ env.UI_ARTIFACT_NAME }}"
+              return artifact.name == artifactName
             })[0];
             if (!matchArtifact) {
               throw new Error("Artifact not found for the specified workflow run.");
@@ -141,10 +147,10 @@ jobs:
             if (!fs.existsSync(temp)){
               fs.mkdirSync(temp);
             }
-            fs.writeFileSync(path.join(temp, '${{ env.UI_ARTIFACT_NAME }}.zip'), Buffer.from(download.data));
+            fs.writeFileSync(path.join(temp, 'ui.zip'), Buffer.from(download.data));
 
       - name: Unzip artifact
-        run: unzip "${{ env.UI_ARTIFACT_NAME }}.zip" -d "${{ runner.temp }}/artifacts"
+        run: unzip ui.zip -d "${{ runner.temp }}/artifacts"
 
       - name: Set image tag variable
         run: echo "IMAGE_TAG=$(cat ${RUNNER_TEMP}/artifacts/image-tag)" >> $GITHUB_ENV

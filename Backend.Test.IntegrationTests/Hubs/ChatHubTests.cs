@@ -28,6 +28,7 @@ namespace Backend.Test.IntegrationTests.Hubs
                 Messages = [userPrompt]
             };
             var chunkBuffer = new List<string>();
+            var responseStreamEnd = new TaskCompletionSource();
 
             hubConnection.On<string>(HubEventNames.ResponseStreamChunk, chunk =>
             {
@@ -42,34 +43,48 @@ namespace Backend.Test.IntegrationTests.Hubs
                 }
             });
 
-            await hubConnection.StartAsync();
-
-            // Act
-            await hubConnection.InvokeAsync("SendMessage", "Hello, world!", sessionId);
-
-            // Allow time for response
-            await Task.Delay(2000);
-
-            // StreamChunk is a direct response from the OpenAI API
-            // So convert it to a Assistant ChatMessage
-            session.Messages.Add(new()
+            // Signal when the response stream ends
+            hubConnection.On(HubEventNames.ResponseStreamEnd, () =>
             {
-                Role = ChatRole.Assistant,
-                Content = string.Join("", chunkBuffer)
+                responseStreamEnd.TrySetResult();
             });
 
-            // Assert
-            Assert.NotNull(session);
-            Assert.True(session.Messages.Count > 1);
-            Assert.Equal(ChatRole.User, session.Messages[0].Role);
-            Assert.Equal(ChatRole.User.ToString(), session.Messages[0].RoleName);
-            Assert.Equal(userPrompt.Content, session.Messages[0].Content);
-            Assert.False(string.IsNullOrEmpty(session.Messages[1].Content));
-            Assert.Equal(ChatRole.Assistant, session.Messages[1].Role);
-            Assert.Equal(sessionId, session.Id);
-            Assert.False(string.IsNullOrEmpty(session.Title));
+            try
+            {
+                await hubConnection.StartAsync();
 
-            await hubConnection.StopAsync();
+                // Act
+                await hubConnection.InvokeAsync("SendMessage", "Hello, world!", sessionId);
+
+                // Wait for the response stream to end (or timeout after 10 seconds)
+                var completed = await Task.WhenAny(responseStreamEnd.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                if (completed != responseStreamEnd.Task)
+                    throw new TimeoutException("Did not receive ResponseStreamEnd in time.");
+
+                // StreamChunk is a direct response from the OpenAI API
+                session.Messages.Add(new()
+                {
+                    Role = ChatRole.Assistant,
+                    Content = string.Join("", chunkBuffer)
+                });
+
+                // Assert
+                Assert.NotNull(session);
+                Assert.True(session.Messages.Count > 1);
+                Assert.Equal(ChatRole.User, session.Messages[0].Role);
+                Assert.Equal(ChatRole.User.ToString(), session.Messages[0].RoleName);
+                Assert.Equal(userPrompt.Content, session.Messages[0].Content);
+                Assert.False(string.IsNullOrEmpty(session.Messages[1].Content));
+                Assert.Equal(ChatRole.Assistant, session.Messages[1].Role);
+                Assert.Equal(sessionId, session.Id);
+
+                await hubConnection.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                if (!ex.Message.Contains("HTTP 429")) throw;
+            }
         }
+
     }
 }

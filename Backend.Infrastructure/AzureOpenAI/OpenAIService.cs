@@ -2,7 +2,6 @@
 using Backend.Core;
 using Backend.Core.Exceptions;
 using OpenAI.Chat;
-using System.ClientModel;
 
 namespace Backend.Infrastructure.AzureOpenAI
 {
@@ -34,36 +33,45 @@ namespace Backend.Infrastructure.AzureOpenAI
         public async IAsyncEnumerable<string> GetChatResponseStreamingAsync(IEnumerable<Core.Models.ChatMessage> messages)
         {
             var chatMessages = PrepareChatMessages(messages);
-            AsyncCollectionResult<StreamingChatCompletionUpdate> completionUpdates;
-            try
+            await using var enumerator = _chatClient.CompleteChatStreamingAsync(chatMessages).GetAsyncEnumerator();
+            bool yieldedAny = false;
+
+            while (true)
             {
-                completionUpdates = _chatClient.CompleteChatStreamingAsync(chatMessages) ?? throw new NotFoundException("Chat response not found.");
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message.Contains("HTTP 429"))
+                bool hasResult;
+                try
                 {
-                    throw new OpenAIRateLimitException();
+                    hasResult = await enumerator.MoveNextAsync().ConfigureAwait(false);
                 }
-                else throw;
-            }
-            await foreach (var completionUpdate in completionUpdates)
-            {
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("HTTP 429"))
+                        throw new OpenAIRateLimitException();
+                    throw;
+                }
+
+                if (!hasResult)
+                    break;
+
+                var completionUpdate = enumerator.Current;
+
                 if (completionUpdate == null || completionUpdate.ContentUpdate == null)
-                {
-                    throw new NotFoundException("Chat response not found.");
-                }
-                if (completionUpdate.ContentUpdate.Count == 0)
-                {
                     continue;
-                }
+
+                if (completionUpdate.ContentUpdate.Count == 0)
+                    continue;
 
                 foreach (var contentPart in completionUpdate.ContentUpdate)
                 {
+                    yieldedAny = true;
                     yield return contentPart.Text;
                 }
-            }            
+            }
+
+            if (!yieldedAny)
+                throw new NotFoundException("Chat response not found.");
         }
+
 
         private List<ChatMessage> PrepareChatMessages(IEnumerable<Core.Models.ChatMessage> messages)
         {

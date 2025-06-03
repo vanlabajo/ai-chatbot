@@ -310,7 +310,7 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
         }
 
         [Fact]
-        public async Task GetChatResponseStreamingAsync_SkipsWhenContentUpdateIsEmpty()
+        public async Task GetChatResponseStreamingAsync_ThrowsNotFoundException_SkipsWhenContentUpdateIsEmpty()
         {
             // Arrange
             var chatMessages = new List<Backend.Core.Models.ChatMessage>
@@ -332,17 +332,18 @@ namespace Backend.Test.UnitTests.Infrastructure.AzureOpenAI
             _mockChatClient.Setup(client => client.CompleteChatStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>(), null, default))
                 .Returns(new AsyncStreamingChatCompletionUpdateCollection([""]));
 
-            // Act
-            var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
-
-            // Assert
             var messages = new List<string>();
-            await foreach (var message in result)
+            // Act & Assert
+            var result = _openAIService.GetChatResponseStreamingAsync(chatMessages);
+            var exception = await Assert.ThrowsAsync<NotFoundException>(async () =>
             {
-                messages.Add(message);
-            }
+                // Foreach here to force the async streaming to execute
+                await foreach (var message in _openAIService.GetChatResponseStreamingAsync(chatMessages))
+                {
+                    messages.Add(message);
+                }
+            });
 
-            // Verify that no messages were yielded
             Assert.Empty(messages);
         }
 

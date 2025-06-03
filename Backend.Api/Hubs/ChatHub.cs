@@ -28,7 +28,8 @@ namespace Backend.Api.Hubs
             var sessionUpdate = new ChatSession
             {
                 Id = session.Id,
-                Timestamp = session.Timestamp
+                Timestamp = session.Timestamp,
+                Title = session.Title
             };
             await Clients.Caller.SendAsync(HubEventNames.SessionUpdate, sessionUpdate);
 

@@ -229,7 +229,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
                       >
                         <span className="flex w-full items-center justify-between">
                           <span className="truncate max-w-[12rem] block">{session.title}</span>
-                          {!session.title && <LoadingStatus className="size-5" />}
+                          {!session.title && <LoadingStatus className="size-4" />}
                         </span>
                       </SidebarLink>
                     </SidebarMenuItem>

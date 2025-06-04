@@ -97,7 +97,7 @@ resource "azurerm_container_registry" "chatbot_acr" {
   resource_group_name = azurerm_resource_group.ai_rg.name
   location            = azurerm_resource_group.ai_rg.location
   sku                 = "Basic"
-  admin_enabled       = true
+  admin_enabled       = false
 }
 
 # Assign AcrPull role to the managed identity
@@ -105,6 +105,13 @@ resource "azurerm_role_assignment" "acr_pull" {
   scope                = azurerm_container_registry.chatbot_acr.id
   role_definition_name = "AcrPull"
   principal_id         = azurerm_user_assigned_identity.chatbot_ui_identity.principal_id
+}
+
+# Assign AcrPush role to the App Registration that I own
+resource "azurerm_role_assignment" "acr_push" {
+  scope                = azurerm_container_registry.chatbot_acr.id
+  role_definition_name = "AcrPush"
+  principal_id         = "3cf3d168-e220-4220-9493-1dd5431fea3a"
 }
 
 # App Service for UI using Docker image and managed identity

@@ -72,12 +72,21 @@ resource "azurerm_linux_web_app" "chatbot_api" {
     "AllowedOrigins__2"                     = ""
     "AllowedOrigins__3"                     = ""
     "ApplicationInsights__ConnectionString" = azurerm_application_insights.chatbot_insights.connection_string
+    "CosmosDb__Endpoint"                    = azurerm_cosmosdb_account.chatbot_cosmos.endpoint
+    "CosmosDb__DatabaseName"                = azurerm_cosmosdb_sql_database.chatbot_db.name
+    "CosmosDb__ContainerName"               = azurerm_cosmosdb_sql_container.chatbot_container.name
   }
 }
 
 # User Assigned Managed Identity
 resource "azurerm_user_assigned_identity" "chatbot_ui_identity" {
   name                = "chatbot-ui-identity-${random_string.random.result}"
+  location            = azurerm_resource_group.ai_rg.location
+  resource_group_name = azurerm_resource_group.ai_rg.name
+}
+
+resource "azurerm_user_assigned_identity" "chatbot_api_identity" {
+  name                = "chatbot-api-identity-${random_string.random.result}"
   location            = azurerm_resource_group.ai_rg.location
   resource_group_name = azurerm_resource_group.ai_rg.name
 }
@@ -138,4 +147,51 @@ resource "azurerm_application_insights" "chatbot_insights" {
   workspace_id        = azurerm_log_analytics_workspace.chatbot_log_analytics.id
   application_type    = "web"
   sampling_percentage = 25
+}
+
+# Cosmos DB Account
+resource "azurerm_cosmosdb_account" "chatbot_cosmos" {
+  name                = "chatbot-cosmos-${random_string.random.result}"
+  location            = azurerm_resource_group.ai_rg.location
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  offer_type          = "Standard"
+  kind                = "GlobalDocumentDB"
+
+  consistency_policy {
+    consistency_level = "Session"
+  }
+
+  geo_location {
+    location          = azurerm_resource_group.ai_rg.location
+    failover_priority = 0
+  }
+
+  capabilities {
+    name = "EnableServerless"
+  }
+
+  automatic_failover_enabled = true
+}
+
+# Cosmos DB SQL Database
+resource "azurerm_cosmosdb_sql_database" "chatbot_db" {
+  name                = "chatbotdb"
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  account_name        = azurerm_cosmosdb_account.chatbot_cosmos.name
+}
+
+# Cosmos DB SQL Container
+resource "azurerm_cosmosdb_sql_container" "chatbot_container" {
+  name                = "chatbotcontainer"
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  account_name        = azurerm_cosmosdb_account.chatbot_cosmos.name
+  database_name       = azurerm_cosmosdb_sql_database.chatbot_db.name
+  partition_key_paths = ["/id"]
+}
+
+# Assign Cosmos DB Contributor role to the API managed identity
+resource "azurerm_role_assignment" "cosmos_db_contributor" {
+  scope                = azurerm_cosmosdb_account.chatbot_cosmos.id
+  role_definition_name = "Cosmos DB Built-in Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
 }

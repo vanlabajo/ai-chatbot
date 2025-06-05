@@ -33,8 +33,9 @@ resource "azurerm_cognitive_deployment" "openai" {
   name                 = "openai-chatbot-deployment-${random_string.random.result}"
   cognitive_account_id = azurerm_cognitive_account.openai.id
   model {
-    format = "OpenAI"
-    name   = "model-router"
+    format  = "OpenAI"
+    name    = "model-router"
+    version = "2025-05-19"
   }
 
   sku {
@@ -113,7 +114,7 @@ resource "azurerm_role_assignment" "acr_pull" {
 resource "azurerm_role_assignment" "acr_push" {
   scope                = azurerm_container_registry.chatbot_acr.id
   role_definition_name = "AcrPush"
-  principal_id         = "3cf3d168-e220-4220-9493-1dd5431fea3a"
+  principal_id         = "ed6b86c0-bb50-4281-8486-1645164e95ee"
 }
 
 # App Service for UI using Docker image and managed identity
@@ -161,7 +162,7 @@ resource "azurerm_application_insights" "chatbot_insights" {
 # Cosmos DB Account
 resource "azurerm_cosmosdb_account" "chatbot_cosmos" {
   name                = "chatbot-cosmos-${random_string.random.result}"
-  location            = azurerm_resource_group.ai_rg.location
+  location            = "Central US"
   resource_group_name = azurerm_resource_group.ai_rg.name
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
@@ -171,7 +172,7 @@ resource "azurerm_cosmosdb_account" "chatbot_cosmos" {
   }
 
   geo_location {
-    location          = azurerm_resource_group.ai_rg.location
+    location          = "Central US"
     failover_priority = 0
   }
 
@@ -195,14 +196,14 @@ resource "azurerm_cosmosdb_sql_container" "chatbot_container" {
   resource_group_name = azurerm_resource_group.ai_rg.name
   account_name        = azurerm_cosmosdb_account.chatbot_cosmos.name
   database_name       = azurerm_cosmosdb_sql_database.chatbot_db.name
-  partition_key_paths = ["/id"]
+  partition_key_paths = ["/UserId"]
 }
 
 # Assign Cosmos DB Contributor role to the API managed identity
 resource "azurerm_role_assignment" "cosmos_db_contributor" {
-  scope                = azurerm_cosmosdb_account.chatbot_cosmos.id
-  role_definition_name = "Cosmos DB Built-in Data Contributor"
-  principal_id         = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
+  scope              = azurerm_cosmosdb_account.chatbot_cosmos.id
+  role_definition_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+  principal_id       = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
 }
 
 # Key Vault
@@ -215,10 +216,10 @@ resource "azurerm_key_vault" "chatbot_key_vault" {
 
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
+    object_id = data.azurerm_client_config.current.object_id
 
     key_permissions         = ["Get", "List"]
-    secret_permissions      = ["Get", "List"]
+    secret_permissions      = ["Get", "List", "Set", "Delete"]
     certificate_permissions = ["Get", "List"]
   }
 }

@@ -33,7 +33,7 @@ namespace Backend.Api.Controllers
 
             // Retrieve or create the chat sessions
             var sessions = await GetOrCreateSessions(user, cancellationToken);
-            var session = GetOrCreateSession(sessions, request.SessionId);
+            var session = GetOrCreateSession(sessions, user, request.SessionId);
 
             // Add the user's message to the session
             session.Messages.Add(new ChatMessage { Role = ChatRole.User, Content = request.Message });
@@ -79,6 +79,7 @@ namespace Backend.Api.Controllers
             // Remove messages from the session objects before sending them to the client
             var sessionList = sessions.Select(s => new ChatSession
             {
+                UserId = s.UserId,
                 Id = s.Id,
                 Title = s.Title,
                 Timestamp = s.Timestamp
@@ -92,7 +93,7 @@ namespace Backend.Api.Controllers
             return sessions ?? [];
         }
 
-        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string? sessionId)
+        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)
         {
             var session = !string.IsNullOrEmpty(sessionId)
                 ? sessions.FirstOrDefault(s => s.Id == sessionId)
@@ -102,6 +103,7 @@ namespace Backend.Api.Controllers
             {
                 session = new ChatSession
                 {
+                    UserId = user,
                     Id = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [

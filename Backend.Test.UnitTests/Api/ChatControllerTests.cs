@@ -258,6 +258,7 @@ namespace Backend.Test.UnitTests.Api
             };
             var existingSession = new ChatSession
             {
+                UserId = "user-123",
                 Id = "001",
                 Messages =
                 [
@@ -349,6 +350,7 @@ namespace Backend.Test.UnitTests.Api
             };
             var existingSession = new ChatSession
             {
+                UserId = "user-123",
                 Id = "001",
                 Messages =
                 [

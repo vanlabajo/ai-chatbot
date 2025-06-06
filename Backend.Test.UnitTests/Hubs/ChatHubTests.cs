@@ -108,6 +108,7 @@ namespace Backend.Test.UnitTests.Hubs
             var message = "Hello, AI!";
             var session = new ChatSession
             {
+                UserId = "user-123",
                 Id = sessionId,
                 Messages =
                 [
@@ -183,6 +184,7 @@ namespace Backend.Test.UnitTests.Hubs
             var message = "Hello, AI!";
             var session = new ChatSession
             {
+                UserId = "user-123",
                 Messages =
                 [
                     new ChatMessage { Role = ChatRole.User, Content = message }
@@ -255,6 +257,7 @@ namespace Backend.Test.UnitTests.Hubs
 
             var session = new ChatSession
             {
+                UserId = "user-123",
                 Id = "sessionId",
                 Messages =
                 [

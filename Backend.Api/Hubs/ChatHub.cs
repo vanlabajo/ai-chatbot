@@ -24,9 +24,10 @@ namespace Backend.Api.Hubs
                 throw new BadRequestException("Message cannot be empty.");
 
             var sessions = await GetOrCreateSessions(user);
-            var session = GetOrCreateSession(sessions, sessionId);
+            var session = GetOrCreateSession(sessions, user, sessionId);
             var sessionUpdate = new ChatSession
             {
+                UserId = session.UserId,
                 Id = session.Id,
                 Timestamp = session.Timestamp,
                 Title = session.Title
@@ -105,7 +106,7 @@ namespace Backend.Api.Hubs
                 return [];
         }
 
-        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string? sessionId)
+        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)
         {
             var session = !string.IsNullOrEmpty(sessionId)
                 ? sessions.FirstOrDefault(s => s.Id == sessionId)
@@ -115,6 +116,7 @@ namespace Backend.Api.Hubs
             {
                 session = new ChatSession
                 {
+                    UserId = user,
                     Id = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [

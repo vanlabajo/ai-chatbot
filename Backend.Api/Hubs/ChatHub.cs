@@ -9,10 +9,14 @@ using System.Text;
 namespace Backend.Api.Hubs
 {
     [Authorize]
-    public class ChatHub(IOpenAIService openAiService, ICacheService cacheService) : Hub
+    public class ChatHub(
+        IOpenAIService openAiService,
+        ICacheService cacheService,
+        IChatSessionService chatSessionService) : Hub
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
+        private readonly IChatSessionService _chatSessionService = chatSessionService;
         private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         public async Task SendMessage(string message, string? sessionId = null)
@@ -68,6 +72,9 @@ namespace Backend.Api.Hubs
             catch (OpenAIRateLimitException) { }
 
             await Clients.Caller.SendAsync(HubEventNames.ResponseStreamEnd);
+
+            // Save the updated session through the service and update the cache
+            await _chatSessionService.SaveSessionAsync(session);
             await _cacheService.SetAsync($"session-{user}", sessions);
         }
 
@@ -99,11 +106,15 @@ namespace Backend.Api.Hubs
 
         private async Task<List<ChatSession>> GetOrCreateSessions(string user)
         {
-            var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}");
+            var cacheKey = $"session-{user}";
+            var sessions = await _cacheService.GetAsync<List<ChatSession>>(cacheKey);
             if (sessions != null && sessions.Count > 0)
                 return [.. sessions.OrderByDescending(s => s.Timestamp)];
-            else
-                return [];
+
+            // Fetch from persistent store if cache is empty
+            sessions = [.. (await _chatSessionService.GetAllSessionsForUserAsync(user))];
+            await _cacheService.SetAsync(cacheKey, sessions);
+            return sessions;
         }
 
         private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)

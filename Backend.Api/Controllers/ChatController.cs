@@ -12,10 +12,11 @@ namespace Backend.Api.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ChatController(IOpenAIService openAiService, ICacheService cacheService) : ControllerBase
+    public class ChatController(IOpenAIService openAiService, ICacheService cacheService, IChatSessionService chatSessionService) : ControllerBase
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
+        private readonly IChatSessionService _chatSessionService = chatSessionService;
         private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         [HttpPost]
@@ -61,6 +62,7 @@ namespace Backend.Api.Controllers
             }
             catch (OpenAIRateLimitException) { }
 
+            await _chatSessionService.SaveSessionAsync(session, cancellationToken);
             // Save the updated sessions list back to the cache
             await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
 
@@ -89,8 +91,14 @@ namespace Backend.Api.Controllers
 
         private async Task<List<ChatSession>> GetOrCreateSessions(string user, CancellationToken cancellationToken)
         {
-            var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
-            return sessions ?? [];
+            var cacheKey = $"session-{user}";
+            var sessions = await _cacheService.GetAsync<List<ChatSession>>(cacheKey, cancellationToken);
+            if (sessions != null && sessions.Count > 0)
+                return sessions;
+
+            sessions = [.. (await _chatSessionService.GetAllSessionsForUserAsync(user, cancellationToken))];
+            await _cacheService.SetAsync(cacheKey, sessions, cancellationToken: cancellationToken);
+            return sessions;
         }
 
         private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)

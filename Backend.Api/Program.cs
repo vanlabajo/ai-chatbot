@@ -4,6 +4,7 @@ using Azure.Identity;
 using Backend.Api;
 using Backend.Api.Hubs;
 using Backend.Core;
+using Backend.Core.Repositories;
 using Backend.Infrastructure;
 using Backend.Infrastructure.AzureCosmos;
 using Backend.Infrastructure.AzureOpenAI;
@@ -34,6 +35,8 @@ builder.Services
     .AddScoped<ICacheService, InMemoryCacheService>()
     .AddScoped<IOpenAIService, OpenAIService>()
     .AddScoped<ITokenizerService, TokenizerService>()
+    .AddScoped<IChatSessionRepository, ChatSessionRepository>()
+    .AddScoped<IChatSessionService, ChatSessionService>()
     .AddTransient<ExceptionHandlingMiddleware>()
     .AddSingleton(ModelToEncoder.For("gpt-4"))
     .AddApplicationInsightsTelemetry(options =>
@@ -53,7 +56,7 @@ builder.Services
         if (!string.IsNullOrWhiteSpace(options.Key))
         {
             // Use key for local development or CI
-            return new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
+            return new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway, SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
         }
         else
         {

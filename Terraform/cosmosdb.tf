@@ -32,5 +32,5 @@ resource "azurerm_cosmosdb_sql_container" "chatbot_container" {
   resource_group_name = azurerm_resource_group.ai_rg.name
   account_name        = azurerm_cosmosdb_account.chatbot_cosmos.name
   database_name       = azurerm_cosmosdb_sql_database.chatbot_db.name
-  partition_key_paths = ["/UserId"]
+  partition_key_paths = ["/userId"]
 }

@@ -53,13 +53,13 @@ builder.Services
         if (!string.IsNullOrWhiteSpace(options.Key))
         {
             // Use key for local development or CI
-            return new CosmosClient(options.Endpoint, options.Key);
+            return new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
         }
         else
         {
             // Use managed identity in Azure
             var credential = new DefaultAzureCredential();
-            return new CosmosClient(options.Endpoint, credential);
+            return new CosmosClient(options.Endpoint, credential, new CosmosClientOptions { SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
         }
     })
     .AddSingleton(sp =>

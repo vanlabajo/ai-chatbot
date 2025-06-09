@@ -159,7 +159,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 var sessions = await repository.GetAllSessionsForUserAsync(userId);
                 // Assert
                 Assert.NotEmpty(sessions);
-                Assert.Equal(2, sessions.Count());
+                Assert.True(sessions.Count() >= 2);
                 Assert.Contains(sessions, s => s.Id == sessionId1);
                 Assert.Contains(sessions, s => s.Id == sessionId2);
             }

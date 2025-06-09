@@ -5,13 +5,17 @@ namespace Backend.Core.Models
     public class ChatMessage
     {
         [JsonPropertyName("id")]
-        public string Id { get; } = Guid.NewGuid().ToString();
-
-        [JsonIgnore]
-        public ChatRole Role { get; set; } = ChatRole.User;
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
         [JsonPropertyName("role")]
-        public string RoleName => Role.ToString();
+        public string RoleName { get; set; } = ChatRole.User.ToString();
+
+        [JsonIgnore]
+        public ChatRole Role
+        {
+            get => ChatRole.FromString(RoleName);
+            set => RoleName = value.ToString();
+        }
 
         public required string Content { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
@@ -37,5 +41,16 @@ namespace Backend.Core.Models
         public override int GetHashCode() => Value.GetHashCode();
         public static bool operator ==(ChatRole left, ChatRole right) => left.Equals(right);
         public static bool operator !=(ChatRole left, ChatRole right) => !(left == right);
+
+        public static ChatRole FromString(string value)
+        {
+            return value switch
+            {
+                "user" => User,
+                "assistant" => Assistant,
+                "system" => System,
+                _ => new ChatRole(value)
+            };
+        }
     }
 }

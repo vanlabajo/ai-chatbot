@@ -30,10 +30,12 @@ resource "azurerm_role_assignment" "acr_push" {
   principal_id         = data.azuread_service_principal.my_sp.object_id
 }
 
-resource "azurerm_role_assignment" "cosmos_db_contributor" {
-  scope              = azurerm_cosmosdb_account.chatbot_cosmos.id
-  role_definition_id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
-  principal_id       = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
+resource "azurerm_cosmosdb_sql_role_assignment" "chatbot_sql_role_assignment" {
+  resource_group_name = azurerm_resource_group.ai_rg.name
+  account_name        = azurerm_cosmosdb_account.chatbot_cosmos.name
+  scope               = azurerm_cosmosdb_account.chatbot_cosmos.id
+  role_definition_id  = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${azurerm_resource_group.ai_rg.name}/providers/Microsoft.DocumentDB/databaseAccounts/${azurerm_cosmosdb_account.chatbot_cosmos.name}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
+  principal_id        = azurerm_user_assigned_identity.chatbot_api_identity.principal_id
 }
 
 resource "time_rotating" "my_app_secret_rotation" {

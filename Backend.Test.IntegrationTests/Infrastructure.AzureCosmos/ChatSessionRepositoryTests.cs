@@ -72,17 +72,22 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
             // Insert the session
             await repository.SaveSessionAsync(session);
 
-            // Act
-            var fetchedSession = await repository.GetSessionAsync(userId, sessionId);
+            try
+            {
+                // Act
+                var fetchedSession = await repository.GetSessionAsync(userId, sessionId);
 
-            // Assert
-            Assert.NotNull(fetchedSession);
-            Assert.Equal(sessionId, fetchedSession.Id);
-            Assert.Equal(userId, fetchedSession.UserId);
-            Assert.Equal("Test Session", fetchedSession.Title);
-
-            // Clean up
-            await repository.DeleteSessionAsync(userId, sessionId);
+                // Assert
+                Assert.NotNull(fetchedSession);
+                Assert.Equal(sessionId, fetchedSession.Id);
+                Assert.Equal(userId, fetchedSession.UserId);
+                Assert.Equal("Test Session", fetchedSession.Title);
+            }
+            finally
+            {
+                // Clean up
+                await repository.DeleteSessionAsync(userId, sessionId);
+            }
         }
 
         [Fact]
@@ -147,16 +152,23 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
             // Insert the sessions
             await repository.SaveSessionAsync(session1);
             await repository.SaveSessionAsync(session2);
-            // Act
-            var sessions = await repository.GetAllSessionsForUserAsync(userId);
-            // Assert
-            Assert.NotEmpty(sessions);
-            Assert.Equal(2, sessions.Count());
-            Assert.Contains(sessions, s => s.Id == sessionId1);
-            Assert.Contains(sessions, s => s.Id == sessionId2);
-            // Clean up
-            await repository.DeleteSessionAsync(userId, sessionId1);
-            await repository.DeleteSessionAsync(userId, sessionId2);
+
+            try
+            {
+                // Act
+                var sessions = await repository.GetAllSessionsForUserAsync(userId);
+                // Assert
+                Assert.NotEmpty(sessions);
+                Assert.Equal(2, sessions.Count());
+                Assert.Contains(sessions, s => s.Id == sessionId1);
+                Assert.Contains(sessions, s => s.Id == sessionId2);
+            }
+            finally
+            {
+                // Clean up
+                await repository.DeleteSessionAsync(userId, sessionId1);
+                await repository.DeleteSessionAsync(userId, sessionId2);
+            }
         }
     }
 }

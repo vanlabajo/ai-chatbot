@@ -41,6 +41,10 @@ jobs:
           AzureAd__Audiences__1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
           SwaggerUI__ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
           SwaggerUI__Scope: ${{ secrets.SWAGGER_UI_SCOPE}}
+          CosmosDb__Endpoint: ${{ secrets.COSMOS_DB_ENDPOINT }}
+          CosmosDb__Key: ${{ secrets.COSMOS_DB_KEY }}
+          CosmosDb__DatabaseName: ${{ secrets.COSMOS_DB_DATABASE_NAME }}
+          CosmosDb__ContainerName: ${{ secrets.COSMOS_DB_CONTAINER_NAME }}
 
       - name: Publish
         working-directory: Backend.Api

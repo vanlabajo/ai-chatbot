@@ -4,10 +4,11 @@ namespace Backend.Core.Models
 {
     public class ChatMessage
     {
+        [JsonPropertyName("id")]
         public string Id { get; } = Guid.NewGuid().ToString();
 
         [JsonIgnore]
-        public required ChatRole Role { get; set; }
+        public ChatRole Role { get; set; } = ChatRole.User;
 
         [JsonPropertyName("role")]
         public string RoleName => Role.ToString();

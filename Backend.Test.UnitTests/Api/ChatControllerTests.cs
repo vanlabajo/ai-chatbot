@@ -17,7 +17,8 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object);
+            var chatSessionService = new Mock<IChatSessionService>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object);
             var request = new ChatRequest { Message = null };
             // Act
             var result = await controller.Chat(request, default);
@@ -31,14 +32,14 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
-            
+
             static async IAsyncEnumerable<string> GetTestValues()
             {
                 yield return "Hello,";
                 yield return " World!";
-
                 await Task.CompletedTask;
             }
 
@@ -47,9 +48,9 @@ namespace Backend.Test.UnitTests.Api
 
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -58,6 +59,11 @@ namespace Backend.Test.UnitTests.Api
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => default!);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             var request = new ChatRequest { Message = "Hello" };
             // Act
             var result = await controller.Chat(request, default);
@@ -65,6 +71,9 @@ namespace Backend.Test.UnitTests.Api
             var okResult = Assert.IsType<OkObjectResult>(result);
             var response = Assert.IsType<ChatResponse>(okResult.Value);
             Assert.Equal("Hello, World!", response.Response);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -73,7 +82,8 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var chatSessionService = new Mock<IChatSessionService>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -93,6 +103,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
 
@@ -100,7 +111,6 @@ namespace Backend.Test.UnitTests.Api
             {
                 yield return "Hello,";
                 yield return " World!";
-
                 await Task.CompletedTask;
             }
 
@@ -111,7 +121,7 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -120,6 +130,11 @@ namespace Backend.Test.UnitTests.Api
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => default!);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             var request = new ChatRequest { Message = "Hello" };
             // Act
             var result = await controller.Chat(request, default);
@@ -127,6 +142,9 @@ namespace Backend.Test.UnitTests.Api
             var okResult = Assert.IsType<OkObjectResult>(result);
             var response = Assert.IsType<ChatResponse>(okResult.Value);
             Assert.Equal("Hello, World!", response.Response);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -135,6 +153,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
 
@@ -142,49 +161,6 @@ namespace Backend.Test.UnitTests.Api
             {
                 yield return "Hello,";
                 yield return " World!";
-
-                await Task.CompletedTask;
-            }
-
-            openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
-                .Returns(GetTestValues);
-
-            var user = new ClaimsPrincipal(new ClaimsIdentity(
-            [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
-            ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
-            {
-                ControllerContext = new ControllerContext
-                {
-                    HttpContext = new DefaultHttpContext { User = user }
-                }
-            };
-            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
-                .ReturnsAsync([]);
-            var request = new ChatRequest { Message = "Hello" };
-            // Act
-            var result = await controller.Chat(request, default);
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var response = Assert.IsType<ChatResponse>(okResult.Value);
-            Assert.Equal("Hello, World!", response.Response);
-        }
-
-        [Fact]
-        public async Task Chat_ServiceResponseIsAddedToCache()
-        {
-            // Arrange
-            var openAiService = new Mock<IOpenAIService>();
-            var cacheService = new Mock<ICacheService>();
-
-            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
-
-            static async IAsyncEnumerable<string> GetTestValues()
-            {
-                yield return "This is the";
-                yield return " Test Title!";
-
                 await Task.CompletedTask;
             }
 
@@ -195,7 +171,57 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            var request = new ChatRequest { Message = "Hello" };
+            // Act
+            var result = await controller.Chat(request, default);
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var response = Assert.IsType<ChatResponse>(okResult.Value);
+            Assert.Equal("Hello, World!", response.Response);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Chat_ServiceResponseIsAddedToCache()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
+
+            openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+
+            static async IAsyncEnumerable<string> GetTestValues()
+            {
+                yield return "This is the";
+                yield return " Test Title!";
+                await Task.CompletedTask;
+            }
+
+            openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
+                .Returns(GetTestValues);
+
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -205,6 +231,10 @@ namespace Backend.Test.UnitTests.Api
 
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             List<ChatSession>? cachedSessions = null;
             cacheService.Setup(x => x.SetAsync("session-testuser", It.IsAny<List<ChatSession>>(), null, It.IsAny<CancellationToken>()))
@@ -228,6 +258,9 @@ namespace Backend.Test.UnitTests.Api
             Assert.Equal("This is the Test Title!", cachedSessions[0].Title);
             Assert.Equal("Hello", cachedSessions[0].Messages[5].Content);
             Assert.Equal("Hello, World!", cachedSessions[0].Messages[6].Content);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -236,6 +269,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -247,9 +281,9 @@ namespace Backend.Test.UnitTests.Api
                 .Returns(GetTestValues);
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -258,6 +292,7 @@ namespace Backend.Test.UnitTests.Api
             };
             var existingSession = new ChatSession
             {
+                UserId = "user-123",
                 Id = "001",
                 Messages =
                 [
@@ -266,7 +301,12 @@ namespace Backend.Test.UnitTests.Api
                 ]
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync([existingSession]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             List<ChatSession>? cachedSessions = null;
             cacheService.Setup(x => x.SetAsync("session-testuser", It.IsAny<List<ChatSession>>(), null, It.IsAny<CancellationToken>()))
                 .Callback<string, List<ChatSession>, TimeSpan?, CancellationToken>((key, sessions, expiration, token) =>
@@ -283,6 +323,9 @@ namespace Backend.Test.UnitTests.Api
             Assert.NotNull(cachedSessions);
             Assert.Single(cachedSessions);
             Assert.Equal(4, cachedSessions[0].Messages.Count);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -291,6 +334,7 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -302,9 +346,9 @@ namespace Backend.Test.UnitTests.Api
                 .Returns(GetTestValues);
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -313,6 +357,11 @@ namespace Backend.Test.UnitTests.Api
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             List<ChatSession>? cachedSessions = null;
             cacheService.Setup(x => x.SetAsync("session-testuser", It.IsAny<List<ChatSession>>(), null, It.IsAny<CancellationToken>()))
                 .Callback<string, List<ChatSession>, TimeSpan?, CancellationToken>((key, sessions, expiration, token) =>
@@ -328,6 +377,9 @@ namespace Backend.Test.UnitTests.Api
             Assert.Equal("Hello, World!", response.Response);
             Assert.NotNull(cachedSessions);
             Assert.Single(cachedSessions);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
+            chatSessionService.Verify(x => x.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -336,11 +388,12 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -349,6 +402,7 @@ namespace Backend.Test.UnitTests.Api
             };
             var existingSession = new ChatSession
             {
+                UserId = "user-123",
                 Id = "001",
                 Messages =
                 [
@@ -358,12 +412,16 @@ namespace Backend.Test.UnitTests.Api
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync([existingSession]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([existingSession]);
             // Act
             var result = await controller.GetSessions(default);
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var sessions = Assert.IsType<List<ChatSession>>(okResult.Value);
             Assert.Single(sessions);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -372,11 +430,12 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
-                    new Claim(ClaimTypes.NameIdentifier, "testuser"),
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -385,12 +444,16 @@ namespace Backend.Test.UnitTests.Api
             };
             cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
                 .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
             // Act
             var result = await controller.GetSessions(default);
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             var sessions = Assert.IsType<List<ChatSession>>(okResult.Value);
             Assert.Empty(sessions);
+
+            chatSessionService.Verify(x => x.GetAllSessionsForUserAsync("testuser", It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -399,7 +462,8 @@ namespace Backend.Test.UnitTests.Api
             // Arrange
             var openAiService = new Mock<IOpenAIService>();
             var cacheService = new Mock<ICacheService>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object)
+            var chatSessionService = new Mock<IChatSessionService>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
             {
                 ControllerContext = new ControllerContext
                 {

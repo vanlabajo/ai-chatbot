@@ -1,12 +1,16 @@
 using Azure;
 using Azure.AI.OpenAI;
+using Azure.Identity;
 using Backend.Api;
 using Backend.Api.Hubs;
 using Backend.Core;
+using Backend.Core.Repositories;
 using Backend.Infrastructure;
+using Backend.Infrastructure.AzureCosmos;
 using Backend.Infrastructure.AzureOpenAI;
 using Backend.Infrastructure.Tiktoken;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
@@ -27,9 +31,12 @@ builder.Services.Configure<JwtBearerOptions>(
 builder.Services
     .AddMemoryCache()
     .Configure<AzureOpenAIOptions>(builder.Configuration.GetSection(AzureOpenAIOptions.AzureOpenAI))
+    .Configure<AzureCosmosDbOptions>(builder.Configuration.GetSection(AzureCosmosDbOptions.CosmosDb))
     .AddScoped<ICacheService, InMemoryCacheService>()
     .AddScoped<IOpenAIService, OpenAIService>()
     .AddScoped<ITokenizerService, TokenizerService>()
+    .AddScoped<IChatSessionRepository, ChatSessionRepository>()
+    .AddScoped<IChatSessionService, ChatSessionService>()
     .AddTransient<ExceptionHandlingMiddleware>()
     .AddSingleton(ModelToEncoder.For("gpt-4"))
     .AddApplicationInsightsTelemetry(options =>
@@ -41,6 +48,28 @@ builder.Services
         var options = sp.GetRequiredService<IOptions<AzureOpenAIOptions>>().Value;
         var azureClient = new AzureOpenAIClient(new Uri(options.Endpoint), new AzureKeyCredential(options.ApiKey));
         return azureClient.GetChatClient(options.DeploymentName);
+    })
+    .AddSingleton(sp =>
+    {
+        var options = sp.GetRequiredService<IOptions<AzureCosmosDbOptions>>().Value;
+
+        if (!string.IsNullOrWhiteSpace(options.Key))
+        {
+            // Use key for local development or CI
+            return new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway, SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
+        }
+        else
+        {
+            // Use managed identity in Azure
+            var credential = new DefaultAzureCredential();
+            return new CosmosClient(options.Endpoint, credential, new CosmosClientOptions { SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
+        }
+    })
+    .AddSingleton(sp =>
+    {
+        var options = sp.GetRequiredService<IOptions<AzureCosmosDbOptions>>().Value;
+        var cosmosClient = sp.GetRequiredService<CosmosClient>();
+        return cosmosClient.GetContainer(options.DatabaseName, options.ContainerName);
     });
 
 builder.Services.AddSignalR();

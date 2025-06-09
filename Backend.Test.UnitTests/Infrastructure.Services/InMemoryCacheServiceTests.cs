@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Moq;
 
-namespace Backend.Test.UnitTests.Infrastructure
+namespace Backend.Test.UnitTests.Infrastructure.Services
 {
     public class InMemoryCacheServiceTests
     {

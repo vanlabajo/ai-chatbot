@@ -17,7 +17,8 @@ namespace Backend.Test.UnitTests.Hubs
             var contextMock = new Mock<HubCallerContext>();
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -46,7 +47,8 @@ namespace Backend.Test.UnitTests.Hubs
 
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -78,6 +80,7 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(s => s.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
                 .Returns(MockStream());
             var cacheServiceMock = new Mock<ICacheService>();
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
 
             var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "user-123") };
             var identity = new ClaimsIdentity(claims, "TestAuthType");
@@ -98,16 +101,11 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(c => c.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
-            {
-                Context = contextMock.Object,
-                Clients = clientsMock.Object
-            };
-
             var sessionId = "sessionId";
             var message = "Hello, AI!";
             var session = new ChatSession
             {
+                UserId = "user-123",
                 Id = sessionId,
                 Messages =
                 [
@@ -118,6 +116,18 @@ namespace Backend.Test.UnitTests.Hubs
             cacheServiceMock
                 .Setup(s => s.GetAsync<List<ChatSession>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
+            chatSessionServiceMock
+                .Setup(s => s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sessions);
+            chatSessionServiceMock
+                .Setup(s => s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            {
+                Context = contextMock.Object,
+                Clients = clientsMock.Object
+            };
 
             // Act
             await chatHub.SendMessage(message, sessionId);
@@ -140,6 +150,11 @@ namespace Backend.Test.UnitTests.Hubs
                         ((ChatSession)args[0]).Id == sessionId),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
+
+            // Verify session is saved
+            chatSessionServiceMock.Verify(s =>
+                s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Fact]
@@ -160,6 +175,7 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(s => s.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
                 .Returns(MockStream());
             var cacheServiceMock = new Mock<ICacheService>();
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
             var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "user-123") };
             var identity = new ClaimsIdentity(claims, "TestAuthType");
             var claimsPrincipal = new ClaimsPrincipal(identity);
@@ -174,29 +190,37 @@ namespace Backend.Test.UnitTests.Hubs
             callerMock
                 .Setup(c => c.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
+
+            cacheServiceMock
+                .Setup(s => s.GetAsync<List<ChatSession>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => default!);
+            chatSessionServiceMock
+                .Setup(s => s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionServiceMock
+                .Setup(s => s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = clientsMock.Object
             };
 
             var message = "Hello, AI!";
-            var session = new ChatSession
-            {
-                Messages =
-                [
-                    new ChatMessage { Role = ChatRole.User, Content = message }
-                ]
-            };
-            var sessions = new List<ChatSession> { session };
-            cacheServiceMock
-                .Setup(s => s.GetAsync<List<ChatSession>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(() => default!);
+
             // Act
             await chatHub.SendMessage(message);
+
             // Assert
             cacheServiceMock.Verify(s =>
                 s.SetAsync(It.Is<string>(key => key == "session-user-123"), It.Is<List<ChatSession>>(s => s.Count == 1), null, default),
+                Times.Exactly(2));
+            chatSessionServiceMock.Verify(s =>
+                s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()),
+                Times.Once);
+            chatSessionServiceMock.Verify(s =>
+                s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
@@ -207,7 +231,8 @@ namespace Backend.Test.UnitTests.Hubs
             var contextMock = new Mock<HubCallerContext>();
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -227,6 +252,7 @@ namespace Backend.Test.UnitTests.Hubs
             // Arrange
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
+            var chatSessionServiceMock = new Mock<IChatSessionService>();
 
             var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "user-123") };
             var identity = new ClaimsIdentity(claims, "TestAuthType");
@@ -247,14 +273,9 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(c => c.SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object)
-            {
-                Context = contextMock.Object,
-                Clients = clientsMock.Object
-            };
-
             var session = new ChatSession
             {
+                UserId = "user-123",
                 Id = "sessionId",
                 Messages =
                 [
@@ -265,7 +286,16 @@ namespace Backend.Test.UnitTests.Hubs
             var sessions = new List<ChatSession> { session };
             cacheServiceMock
                 .Setup(s => s.GetAsync<List<ChatSession>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionServiceMock
+                .Setup(s => s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
+
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            {
+                Context = contextMock.Object,
+                Clients = clientsMock.Object
+            };
 
             // Act
             await chatHub.GetHistory("sessionId", 0, 20);
@@ -277,6 +307,9 @@ namespace Backend.Test.UnitTests.Hubs
                     It.Is<object[]>(args => args.Length == 1 && args[0] is ChatMessage),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
+            chatSessionServiceMock.Verify(s =>
+                s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()),
+                Times.Once);
         }
     }
 }

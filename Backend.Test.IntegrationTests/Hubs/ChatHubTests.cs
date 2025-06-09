@@ -25,6 +25,7 @@ namespace Backend.Test.IntegrationTests.Hubs
             ChatSession session = new()
             {
                 Id = sessionId,
+                UserId = "test-123",
                 Messages = [userPrompt]
             };
             var chunkBuffer = new List<string>();

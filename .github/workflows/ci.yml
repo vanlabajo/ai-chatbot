@@ -41,6 +41,10 @@ jobs:
           AzureAd__Audiences__1: ${{ secrets.AZURE_AD_AUDIENCES_1 }}
           SwaggerUI__ClientId: ${{ secrets.AZURE_AD_CLIENT_ID }}
           SwaggerUI__Scope: ${{ secrets.SWAGGER_UI_SCOPE}}
+          CosmosDb__Endpoint: ${{ secrets.COSMOS_DB_ENDPOINT }}
+          CosmosDb__Key: ${{ secrets.COSMOS_DB_KEY }}
+          CosmosDb__DatabaseName: ${{ secrets.COSMOS_DB_DATABASE_NAME }}
+          CosmosDb__ContainerName: ${{ secrets.COSMOS_DB_CONTAINER_NAME }}
 
       - name: Publish
         working-directory: Backend.Api
@@ -66,11 +70,11 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure Container Registry Login
-        uses: azure/docker-login@v2
+        uses: docker/login-action@v3
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          password: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
 
       - name: Build Docker image
         working-directory: Frontend.Web

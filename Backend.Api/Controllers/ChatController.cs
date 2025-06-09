@@ -12,10 +12,11 @@ namespace Backend.Api.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ChatController(IOpenAIService openAiService, ICacheService cacheService) : ControllerBase
+    public class ChatController(IOpenAIService openAiService, ICacheService cacheService, IChatSessionService chatSessionService) : ControllerBase
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
+        private readonly IChatSessionService _chatSessionService = chatSessionService;
         private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         [HttpPost]
@@ -33,7 +34,7 @@ namespace Backend.Api.Controllers
 
             // Retrieve or create the chat sessions
             var sessions = await GetOrCreateSessions(user, cancellationToken);
-            var session = GetOrCreateSession(sessions, request.SessionId);
+            var session = GetOrCreateSession(sessions, user, request.SessionId);
 
             // Add the user's message to the session
             session.Messages.Add(new ChatMessage { Role = ChatRole.User, Content = request.Message });
@@ -61,6 +62,7 @@ namespace Backend.Api.Controllers
             }
             catch (OpenAIRateLimitException) { }
 
+            await _chatSessionService.SaveSessionAsync(session, cancellationToken);
             // Save the updated sessions list back to the cache
             await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
 
@@ -79,6 +81,7 @@ namespace Backend.Api.Controllers
             // Remove messages from the session objects before sending them to the client
             var sessionList = sessions.Select(s => new ChatSession
             {
+                UserId = s.UserId,
                 Id = s.Id,
                 Title = s.Title,
                 Timestamp = s.Timestamp
@@ -88,11 +91,17 @@ namespace Backend.Api.Controllers
 
         private async Task<List<ChatSession>> GetOrCreateSessions(string user, CancellationToken cancellationToken)
         {
-            var sessions = await _cacheService.GetAsync<List<ChatSession>>($"session-{user}", cancellationToken);
-            return sessions ?? [];
+            var cacheKey = $"session-{user}";
+            var sessions = await _cacheService.GetAsync<List<ChatSession>>(cacheKey, cancellationToken);
+            if (sessions != null && sessions.Count > 0)
+                return sessions;
+
+            sessions = [.. (await _chatSessionService.GetAllSessionsForUserAsync(user, cancellationToken))];
+            await _cacheService.SetAsync(cacheKey, sessions, cancellationToken: cancellationToken);
+            return sessions;
         }
 
-        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string? sessionId)
+        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)
         {
             var session = !string.IsNullOrEmpty(sessionId)
                 ? sessions.FirstOrDefault(s => s.Id == sessionId)
@@ -102,6 +111,7 @@ namespace Backend.Api.Controllers
             {
                 session = new ChatSession
                 {
+                    UserId = user,
                     Id = sessionId ?? Guid.NewGuid().ToString(),
                     Messages =
                     [

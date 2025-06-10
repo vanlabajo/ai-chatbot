@@ -1,4 +1,5 @@
 ﻿using Backend.Core.DTOs;
+using Backend.Core.Models;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
@@ -46,6 +47,20 @@ namespace Backend.Test.IntegrationTests.Api
             catch (TaskCanceledException)
             {
                 // Skip the test if the OpenAI service is not available
+            }
+            finally
+            {
+                // Clean up
+                var sessions = await _client.GetAsync("/api/chat/sessions");
+                if (sessions.IsSuccessStatusCode)
+                {
+                    var sessionsString = await sessions.Content.ReadAsStringAsync();
+                    var sessionList = JsonSerializer.Deserialize<List<ChatSession>>(sessionsString, _jsonOptions);
+                    foreach (var session in sessionList ?? [])
+                    {
+                        await _client.DeleteAsync($"/api/chat/sessions/{session.Id}");
+                    }
+                }
             }
         }
 

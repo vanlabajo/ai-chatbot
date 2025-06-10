@@ -475,5 +475,94 @@ namespace Backend.Test.UnitTests.Api
             // Assert
             Assert.IsType<BadRequestObjectResult>(result);
         }
+
+        [Fact]
+        public async Task DeleteSession_ReturnsNoContent_WhenSessionIsDeleted()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            var sessionId = "001";
+            var existingSession = new ChatSession
+            {
+                UserId = "testuser",
+                Id = sessionId,
+                Messages =
+                [
+                    new() { Role = ChatRole.User, Content = "Hello" },
+                    new() { Role = ChatRole.Assistant, Content = "Hi there!" }
+                ]
+            };
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([existingSession]);
+            chatSessionService.Setup(x => x.DeleteSessionAsync("testuser", sessionId, It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            // Act
+            var result = await controller.DeleteSession(sessionId, default);
+            // Assert
+            Assert.IsType<NoContentResult>(result);
+            chatSessionService.Verify(x => x.DeleteSessionAsync("testuser", sessionId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task DeleteSession_ReturnsNotFound_WhenSessionDoesNotExist()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
+            var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "testuser"),
+            ], "mock"));
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = user }
+                }
+            };
+            var sessionId = "001";
+            cacheService.Setup(x => x.GetAsync<List<ChatSession>>("session-testuser", It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+            chatSessionService.Setup(x => x.DeleteSessionAsync("testuser", sessionId, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new KeyNotFoundException("Session not found"));
+            // Act
+            var result = await controller.DeleteSession(sessionId, default);
+            // Assert
+            Assert.IsType<NotFoundObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task DeleteSession_ReturnsBadRequest_WhenUserIdentityIsNull()
+        {
+            // Arrange
+            var openAiService = new Mock<IOpenAIService>();
+            var cacheService = new Mock<ICacheService>();
+            var chatSessionService = new Mock<IChatSessionService>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext()
+                }
+            };
+            // Act
+            var result = await controller.DeleteSession("001", default);
+            // Assert
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
     }
 }

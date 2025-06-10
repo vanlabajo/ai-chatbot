@@ -27,6 +27,7 @@ resource "azurerm_linux_web_app" "chatbot_api" {
   key_vault_reference_identity_id = azurerm_user_assigned_identity.chatbot_api_identity.id
 
   app_settings = {
+    "AZURE_CLIENT_ID"                       = azurerm_user_assigned_identity.chatbot_api_identity.client_id
     "AzureAd__TenantId"                     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.azuread_tenant_id.id})"
     "AzureAd__ClientId"                     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.azuread_client_id.id})"
     "AzureAd__ClientSecret"                 = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.my_app_secret.id})"

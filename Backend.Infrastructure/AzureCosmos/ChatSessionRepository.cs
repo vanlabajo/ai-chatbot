@@ -9,9 +9,9 @@ namespace Backend.Infrastructure.AzureCosmos
     {
         private readonly Container _container = container;
 
-        public Task DeleteSessionAsync(string userId, string sessionId, CancellationToken cancellationToken = default)
+        public async Task DeleteSessionAsync(string userId, string sessionId, CancellationToken cancellationToken = default)
         {
-            return _container.DeleteItemAsync<ChatSession>(sessionId, new PartitionKey(userId), cancellationToken: cancellationToken);
+            await _container.DeleteItemAsync<ChatSession>(sessionId, new PartitionKey(userId), cancellationToken: cancellationToken);
         }
 
         public async Task<IEnumerable<ChatSession>> GetAllSessionsForUserAsync(string userId, CancellationToken cancellationToken = default)

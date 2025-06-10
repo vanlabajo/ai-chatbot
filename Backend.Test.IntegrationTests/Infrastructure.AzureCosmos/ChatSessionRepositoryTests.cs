@@ -56,7 +56,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
             var container = cosmosClient.GetContainer(options.DatabaseName, options.ContainerName);
             var repository = new ChatSessionRepository(container);
 
-            var userId = "test-user";
+            var userId = $"test-user-{Guid.NewGuid()}";
             var sessionId = Guid.NewGuid().ToString();
             var session = new ChatSession
             {
@@ -65,7 +65,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 Title = "Test Session",
                 Timestamp = DateTime.UtcNow,
                 Messages = [
-                    new() { Content = "Hello", Timestamp = DateTime.UtcNow, Role = ChatRole.User },
+                    new() { Content = "Hello", Timestamp = DateTime.UtcNow, Role = ChatRole.System },
                 ]
             };
 
@@ -82,6 +82,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 Assert.Equal(sessionId, fetchedSession.Id);
                 Assert.Equal(userId, fetchedSession.UserId);
                 Assert.Equal("Test Session", fetchedSession.Title);
+                Assert.Equal(ChatRole.System, fetchedSession.Messages[0].Role);
             }
             finally
             {
@@ -126,7 +127,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
             var cosmosClient = new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway, SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
             var container = cosmosClient.GetContainer(options.DatabaseName, options.ContainerName);
             var repository = new ChatSessionRepository(container);
-            var userId = "test-user";
+            var userId = $"test-user-{Guid.NewGuid()}";
             var sessionId1 = Guid.NewGuid().ToString();
             var session1 = new ChatSession
             {
@@ -135,7 +136,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 Title = "Test Session 1",
                 Timestamp = DateTime.UtcNow,
                 Messages = [
-                    new() { Content = "Hello from session 1", Timestamp = DateTime.UtcNow, Role = ChatRole.User },
+                    new() { Content = "Hello from session 1", Timestamp = DateTime.UtcNow, Role = ChatRole.System },
                 ]
             };
             var sessionId2 = Guid.NewGuid().ToString();
@@ -146,7 +147,7 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 Title = "Test Session 2",
                 Timestamp = DateTime.UtcNow,
                 Messages = [
-                    new() { Content = "Hello from session 2", Timestamp = DateTime.UtcNow, Role = ChatRole.User },
+                    new() { Content = "Hello from session 2", Timestamp = DateTime.UtcNow, Role = ChatRole.Assistant },
                 ]
             };
             // Insert the sessions
@@ -156,12 +157,17 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
             try
             {
                 // Act
-                var sessions = await repository.GetAllSessionsForUserAsync(userId);
+                var sessions = (await repository.GetAllSessionsForUserAsync(userId)).ToList();
                 // Assert
                 Assert.NotEmpty(sessions);
-                Assert.True(sessions.Count() >= 2);
+                Assert.True(sessions.Count >= 2);
                 Assert.Contains(sessions, s => s.Id == sessionId1);
                 Assert.Contains(sessions, s => s.Id == sessionId2);
+
+                var fetched1 = sessions.First(s => s.Id == sessionId1);
+                var fetched2 = sessions.First(s => s.Id == sessionId2);
+                Assert.Equal(ChatRole.System, fetched1.Messages[0].Role);
+                Assert.Equal(ChatRole.Assistant, fetched2.Messages[0].Role);
             }
             finally
             {

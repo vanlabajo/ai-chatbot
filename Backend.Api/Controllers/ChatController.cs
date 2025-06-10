@@ -89,6 +89,27 @@ namespace Backend.Api.Controllers
             return Ok(sessionList);
         }
 
+        [HttpDelete("sessions/{sessionId}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteSession(string sessionId, CancellationToken cancellationToken)
+        {
+            var user = User.GetNameIdentifierId();
+            if (user == null)
+                return BadRequest("User identity is not available.");
+            if (string.IsNullOrWhiteSpace(sessionId))
+                return BadRequest("Session ID cannot be empty.");
+            var sessions = await GetOrCreateSessions(user, cancellationToken);
+            var session = sessions.FirstOrDefault(s => s.Id == sessionId);
+            if (session == null)
+                return NotFound("Session not found.");
+            await _chatSessionService.DeleteSessionAsync(user, sessionId, cancellationToken);
+            sessions.Remove(session);
+            await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
+            return NoContent();
+        }
+
         private async Task<List<ChatSession>> GetOrCreateSessions(string user, CancellationToken cancellationToken)
         {
             var cacheKey = $"session-{user}";

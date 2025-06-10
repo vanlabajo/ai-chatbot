@@ -85,6 +85,17 @@ namespace Backend.Test.IntegrationTests.Hubs
             {
                 if (!ex.Message.Contains("HTTP 429")) throw;
             }
+            finally
+            {
+                // Clean up: stop the connection and delete the session
+                if (hubConnection.State == HubConnectionState.Connected)
+                {
+                    await hubConnection.StopAsync();
+                }
+                // Delete the session if it exists
+                var deleteResponse = await _client.DeleteAsync($"/api/chat/sessions/{sessionId}");
+                Assert.True(deleteResponse.IsSuccessStatusCode, "Failed to delete session.");
+            }
         }
 
     }

@@ -27,5 +27,10 @@ namespace Backend.Infrastructure
         {
             return _chatSessionRepository.DeleteSessionAsync(userId, sessionId, cancellationToken);
         }
+
+        public async Task<IEnumerable<ChatSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default)
+        {
+            return await _chatSessionRepository.GetAllSessionsAsync(cancellationToken);
+        }
     }
 }

@@ -8,5 +8,6 @@ namespace Backend.Core
         Task<ChatSession?> GetSessionByIdAsync(string userId, string sessionId, CancellationToken cancellationToken = default);
         Task<IEnumerable<ChatSession>> GetAllSessionsForUserAsync(string userId, CancellationToken cancellationToken = default);
         Task DeleteSessionAsync(string userId, string sessionId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<ChatSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default);
     }
 }

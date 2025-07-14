@@ -176,5 +176,63 @@ namespace Backend.Test.IntegrationTests.Infrastructure.AzureCosmos
                 await repository.DeleteSessionAsync(userId, sessionId2);
             }
         }
+
+        [Fact]
+        public async Task GetAllSessionsAsync_ReturnsSessions_WhenSessionsExist()
+        {
+            // Arrange
+            var configSection = _configuration.GetSection("CosmosDb");
+            var options = new AzureCosmosDbOptions
+            {
+                Endpoint = configSection["Endpoint"]!,
+                Key = configSection["Key"]!,
+                DatabaseName = configSection["DatabaseName"]!,
+                ContainerName = configSection["ContainerName"]!
+            };
+            var cosmosClient = new CosmosClient(options.Endpoint, options.Key, new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway, SerializerOptions = new() { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase } });
+            var container = cosmosClient.GetContainer(options.DatabaseName, options.ContainerName);
+            var repository = new ChatSessionRepository(container);
+            var sessionId1 = Guid.NewGuid().ToString();
+            var session1 = new ChatSession
+            {
+                Id = sessionId1,
+                UserId = "test-user-1",
+                Title = "Test Session 1",
+                Timestamp = DateTime.UtcNow,
+                Messages = [
+                    new() { Content = "Hello from session 1", Timestamp = DateTime.UtcNow, Role = ChatRole.System },
+                ]
+            };
+            var sessionId2 = Guid.NewGuid().ToString();
+            var session2 = new ChatSession
+            {
+                Id = sessionId2,
+                UserId = "test-user-2",
+                Title = "Test Session 2",
+                Timestamp = DateTime.UtcNow,
+                Messages = [
+                    new() { Content = "Hello from session 2", Timestamp = DateTime.UtcNow, Role = ChatRole.Assistant },
+                ]
+            };
+            // Insert the sessions
+            await repository.SaveSessionAsync(session1);
+            await repository.SaveSessionAsync(session2);
+            try
+            {
+                // Act
+                var sessions = (await repository.GetAllSessionsAsync()).ToList();
+                // Assert
+                Assert.NotEmpty(sessions);
+                Assert.True(sessions.Count >= 2);
+                Assert.Contains(sessions, s => s.Id == sessionId1);
+                Assert.Contains(sessions, s => s.Id == sessionId2);
+            }
+            finally
+            {
+                // Clean up
+                await repository.DeleteSessionAsync(session1.UserId, sessionId1);
+                await repository.DeleteSessionAsync(session2.UserId, sessionId2);
+            }
+        }
     }
 }

@@ -14,10 +14,25 @@ namespace Backend.Infrastructure.AzureCosmos
             await _container.DeleteItemAsync<ChatSession>(sessionId, new PartitionKey(userId), cancellationToken: cancellationToken);
         }
 
+        public async Task<IEnumerable<ChatSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default)
+        {
+            var query = _container.GetItemLinqQueryable<ChatSession>(allowSynchronousQueryExecution: false)
+                .OrderByDescending(s => s.Timestamp)
+                .ToFeedIterator();
+            var results = new List<ChatSession>();
+            while (query.HasMoreResults)
+            {
+                var response = await query.ReadNextAsync(cancellationToken);
+                results.AddRange(response);
+            }
+            return results;
+        }
+
         public async Task<IEnumerable<ChatSession>> GetAllSessionsForUserAsync(string userId, CancellationToken cancellationToken = default)
         {
             var query = _container.GetItemLinqQueryable<ChatSession>(allowSynchronousQueryExecution: false)
                 .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.Timestamp)
                 .ToFeedIterator();
 
             var results = new List<ChatSession>();

@@ -1,6 +1,7 @@
 "use client";
 import { ChatHeader } from "@/components/ui/chat/ChatHeader";
 import { ChatInput } from "@/components/ui/chat/ChatInput";
+import { useChatLoading } from "@/components/ui/chat/ChatLoadingContext";
 import { PreviewChatMessage, ThinkingChatMessage } from "@/components/ui/chat/ChatMessage";
 import { ChatOverview } from "@/components/ui/chat/ChatOverview";
 import { UseChatScroll } from "@/components/ui/chat/UseChatScroll";
@@ -19,7 +20,7 @@ export default function Chat() {
   const [messagesContainerRef, messagesEndRef, scrollToBottom, preserveScrollOnPrepend] = UseChatScroll<HTMLDivElement>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { isLoading, setIsLoading } = useChatLoading();
   const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);

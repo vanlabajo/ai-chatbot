@@ -25,6 +25,16 @@ const suggestedActions = [
     label: 'about programmers',
     action: 'Tell me a fun fact about programmers',
   },
+  {
+    title: 'What\'s a good book',
+    label: 'or movie recommendation?',
+    action: 'What\'s a good book or movie recommendation?'
+  },
+  {
+    title: 'Can you help me',
+    label: 'brainstorm ideas for a project?',
+    action: 'Can you help me brainstorm ideas for a project?'
+  }
 ];
 
 export const ChatInput = ({ question, setQuestion, onSubmit, isLoading, hideSuggestions = false }: ChatInputProps) => {

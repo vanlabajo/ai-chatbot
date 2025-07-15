@@ -4,12 +4,12 @@ import { ChatInput } from "@/components/ui/chat/ChatInput";
 import { useChatLoading } from "@/components/ui/chat/ChatLoadingContext";
 import { PreviewChatMessage, ThinkingChatMessage } from "@/components/ui/chat/ChatMessage";
 import { ChatOverview } from "@/components/ui/chat/ChatOverview";
-import { UseChatScroll } from "@/components/ui/chat/UseChatScroll";
+import { UseScrollToBottom } from "@/components/ui/chat/UseScrollToBottom";
 import { ChatMessage, HubEventNames } from "@/lib/definitions";
 import { getConnection } from "@/lib/signalr";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Chat() {
@@ -17,14 +17,13 @@ export default function Chat() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
 
-  const [messagesContainerRef, messagesEndRef, scrollToBottom, preserveScrollOnPrepend] = UseChatScroll<HTMLDivElement>();
+  const [messagesContainerRef, messagesEndRef] = UseScrollToBottom<HTMLDivElement>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState<string>("");
   const { isLoading, setIsLoading } = useChatLoading();
   const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
-  const [lastAnimatedAssistantId, setLastAnimatedAssistantId] = useState<string | null>(null);
   const limit = 20;
 
   const sessionIdRef = useRef<string | null>(sessionId);
@@ -86,6 +85,7 @@ export default function Chat() {
         const updatedMessage = {
           ...lastMessage,
           content: lastMessage.content + chunk,
+          shouldTypewrite: true, // Indicate this message should use typewriter effect
         };
         return [...prev.slice(0, -1), updatedMessage];
       } else {
@@ -95,6 +95,7 @@ export default function Chat() {
           role: "assistant",
           id: uuidv4(),
           timestamp: new Date().toISOString(),
+          shouldTypewrite: true, // Indicate this message should use typewriter effect
         };
         return [...prev, newMessage];
       }
@@ -116,8 +117,7 @@ export default function Chat() {
 
   const messageStreamEndHandler = useCallback(() => {
     cleanupMessageHandler();
-    scrollToBottom();
-  }, [cleanupMessageHandler, scrollToBottom]);
+  }, [cleanupMessageHandler]);
 
   const historyStreamEndHandler = useCallback(() => {
     cleanupHistoryHandler();
@@ -226,14 +226,6 @@ export default function Chat() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, [messagesContainerRef, hasMore, isLoading, sessionId, hubConnection, offset, limit]);
 
-  // --- Preserve scroll position on prepend ---
-  useLayoutEffect(() => {
-    if (prevHeightRef.current && messagesContainerRef.current && isLoading === false) {
-      preserveScrollOnPrepend(prevHeightRef.current);
-      prevHeightRef.current = null;
-    }
-  }, [messages, isLoading, preserveScrollOnPrepend, messagesContainerRef]);
-
   // --- Handle user submitting a message ---
   const handleSubmit = async (text?: string) => {
     if (!hubConnection || hubConnection.state !== HubConnectionState.Connected || isLoading) return;
@@ -255,7 +247,6 @@ export default function Chat() {
     };
     setMessages((prev) => [...prev, optimisticMessage]);
     setQuestion("");
-    scrollToBottom();
 
     messageHandlerRef.current = messageHandler;
     hubConnection.on(HubEventNames.ResponseStreamChunk, messageHandler);
@@ -275,11 +266,6 @@ export default function Chat() {
     [messages]
   );
 
-  const latestAssistantId = useMemo(() => {
-    const last = [...filteredMessages].reverse().find(m => m.role === "assistant");
-    return last?.id ?? null;
-  }, [filteredMessages]);
-
   return (
     <section aria-label="Chat" className="flex flex-col h-[calc(96dvh-2rem)] bg-background">
       <ChatHeader />
@@ -288,21 +274,12 @@ export default function Chat() {
         ref={messagesContainerRef}
       >
         {filteredMessages.length === 0 && <ChatOverview />}
-        {filteredMessages.map((message, index) => {
-          const shouldTypewrite =
-            message.role === "assistant" &&
-            message.id === latestAssistantId &&
-            message.id !== lastAnimatedAssistantId;
-
+        {filteredMessages.map((message) => {
           return (
             <PreviewChatMessage
               key={message.id}
               message={message}
-              activateTypewritingEffect={shouldTypewrite}
-              onTypewriterFinished={() => {
-                setLastAnimatedAssistantId(message.id);
-                scrollToBottom();
-              }}
+              activateTypewritingEffect={!!message.shouldTypewrite}
             />
           );
         })}

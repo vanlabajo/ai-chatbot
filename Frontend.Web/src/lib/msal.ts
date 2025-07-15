@@ -118,3 +118,18 @@ export function isLoggedIn(): boolean {
   const activeAccount = msalInstance.getActiveAccount();
   return !!activeAccount;
 }
+
+/**
+ * Check if the current user is an admin.
+ */
+export function isAdmin(): boolean {
+  const activeAccount = msalInstance.getActiveAccount();
+  const idTokenClaims = activeAccount?.idTokenClaims as any;
+
+  const adminObjectId = "abec87ca-d675-4072-bbe4-381717cc86a6";
+  if (idTokenClaims?.oid === adminObjectId) {
+    return true;
+  }
+
+  return false;
+}

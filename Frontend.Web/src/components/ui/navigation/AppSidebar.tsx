@@ -1,5 +1,6 @@
 "use client";
 import { Button } from "@/components/Button";
+import { Divider } from "@/components/Divider";
 import { Input } from "@/components/Input";
 import {
   Sidebar,
@@ -14,13 +15,15 @@ import {
 } from "@/components/Sidebar";
 import { getSessions } from "@/lib/api";
 import { ChatSession, HubEventNames } from "@/lib/definitions";
+import { isAdmin } from "@/lib/msal";
 import { getConnection } from "@/lib/signalr";
 import { Logo } from "@/public/Logo";
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { differenceInCalendarDays, isToday, isYesterday } from "date-fns";
-import { PencilLine } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { PencilLine, Shield } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { ComponentProps, useCallback, useEffect, useRef, useState } from "react";
+import { useChatLoading } from "../chat/ChatLoadingContext";
 import { LoadingStatus } from "./LoadingStatus";
 import { UserProfile } from "./UserProfile";
 
@@ -29,6 +32,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId");
 
+  const { isLoading } = useChatLoading();
   const [navigation, setNavigation] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
@@ -36,6 +40,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
   const isInitializedRef = useRef(false);
   const sessionUpdateHandlerRef = useRef<((session: ChatSession) => void) | null>(null);
+  const sessionDeleteHandlerRef = useRef<((sessionId: string) => void) | null>(null);
 
   const cleanupSessionUpdateHandler = useCallback(() => {
     if (sessionUpdateHandlerRef.current && hubConnection) {
@@ -59,6 +64,19 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         return [updatedSession, ...prev];
       }
     });
+  }, []);
+
+  const cleanupSessionDeleteHandler = useCallback(() => {
+    if (sessionDeleteHandlerRef.current && hubConnection) {
+      if (hubConnection.state === HubConnectionState.Connected) {
+        hubConnection.off(HubEventNames.SessionDelete, sessionDeleteHandlerRef.current);
+      }
+      sessionDeleteHandlerRef.current = null;
+    }
+  }, [hubConnection]);
+
+  const sessionDeleteHandler = useCallback((deletedSessionId: string) => {
+    setNavigation(prev => prev.filter(session => session.id !== deletedSessionId));
   }, []);
 
   const initialize = useCallback(async () => {
@@ -94,13 +112,15 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
 
       sessionUpdateHandlerRef.current = sessionUpdateHandler;
       connection.on(HubEventNames.SessionUpdate, sessionUpdateHandlerRef.current);
+      sessionDeleteHandlerRef.current = sessionDeleteHandler;
+      connection.on(HubEventNames.SessionDelete, sessionDeleteHandlerRef.current);
 
       setHubConnection(connection);
     } catch (err) {
       console.error("SignalR connection error:", err);
       isInitializedRef.current = false;
     }
-  }, [sessionUpdateHandler]);
+  }, [sessionUpdateHandler, sessionDeleteHandler]);
 
   useEffect(() => {
     initializeConnection();
@@ -108,11 +128,12 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     return () => {
       if (hubConnection) {
         cleanupSessionUpdateHandler();
+        cleanupSessionDeleteHandler();
         hubConnection.stop();
         isInitializedRef.current = false;
       }
     };
-  }, [initializeConnection, hubConnection, cleanupSessionUpdateHandler]);
+  }, [initializeConnection, hubConnection, cleanupSessionUpdateHandler, cleanupSessionDeleteHandler]);
 
   const handleClick = (sessionId: string) => {
     router.replace(`/chat?sessionId=${sessionId}`);
@@ -164,6 +185,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     });
 
   const groupedSessions = groupSessionsByDay(filteredNavigation);
+  const pathname = usePathname();
 
   return (
     <Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
@@ -181,19 +203,48 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
             </span>
           </div>
           <span className="flex size-6 ml-auto mb-auto items-center justify-center rounded-md bg-white dark:bg-gray-900 dark:ring-gray-800">
-            <Button
-              variant="secondary"
-              className="h-6 w-6 p-0"
-              title="New chat"
-              onClick={handleNewChat}
-            >
-              <PencilLine className="w-4" />
-              <span className="sr-only">New chat</span>
-            </Button>
+            <div className="relative">
+              <Button
+                variant="secondary"
+                className="h-6 w-6 p-0"
+                title={isLoading ? "Please wait for the current response to finish." : "New chat"}
+                onClick={handleNewChat}
+                disabled={isLoading}
+                aria-disabled={isLoading}
+              >
+                <PencilLine className="w-4" />
+                <span className="sr-only">New chat</span>
+              </Button>
+            </div>
           </span>
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {
+          isAdmin() && (
+            <>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu className="space-y-1">
+                    <SidebarMenuItem className="flex items-center">
+                      <SidebarLink
+                        href="/admin"
+                        isActive={pathname === "/admin"}
+                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                        icon={Shield}
+                      >
+                        Admin Dashboard
+                      </SidebarLink>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+              <div className="px-3">
+                <Divider className="my-0 py-0" />
+              </div>
+            </>
+          )
+        }
         <SidebarGroup>
           <SidebarGroupContent>
             <Input

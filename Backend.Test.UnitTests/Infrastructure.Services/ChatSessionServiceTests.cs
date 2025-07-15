@@ -74,5 +74,25 @@ namespace Backend.Test.UnitTests.Infrastructure.Services
             // Assert
             mockRepository.Verify(repo => repo.DeleteSessionAsync(userId, sessionId, It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task GetAllSessionsAsync_ShouldCallRepository()
+        {
+            // Arrange
+            var mockRepository = new Mock<IChatSessionRepository>();
+            var service = new ChatSessionService(mockRepository.Object);
+            var expectedSessions = new List<ChatSession>
+            {
+                new() { UserId = "user1", Id = "session1", Messages = [] },
+                new() { UserId = "user2", Id = "session2", Messages = [] }
+            };
+            mockRepository.Setup(repo => repo.GetAllSessionsAsync(It.IsAny<CancellationToken>()))
+                          .ReturnsAsync(expectedSessions);
+            // Act
+            var result = await service.GetAllSessionsAsync();
+            // Assert
+            Assert.Equal(expectedSessions, result);
+            mockRepository.Verify(repo => repo.GetAllSessionsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

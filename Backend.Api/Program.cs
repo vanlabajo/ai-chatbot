@@ -121,6 +121,16 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("AdminOnly", policy =>
+        policy.RequireAssertion(context =>
+            context.User.HasClaim(c =>
+                c.Type == ClaimConstants.ObjectId &&
+                c.Value == "abec87ca-d675-4072-bbe4-381717cc86a6"
+            )
+        )
+);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

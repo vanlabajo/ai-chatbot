@@ -1,5 +1,5 @@
 # Base image
-FROM node:24-alpine AS base
+FROM node:24.3.0-alpine AS base
 WORKDIR /app
 
 # Build stage

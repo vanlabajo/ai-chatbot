@@ -9,6 +9,7 @@
         public const string HistoryStreamChunk = "HistoryStreamChunk";
         public const string HistoryStreamEnd = "HistoryStreamEnd";
         public const string SessionUpdate = "SessionUpdate";
+        public const string SessionDelete = "SessionDelete";
     }
 
 }

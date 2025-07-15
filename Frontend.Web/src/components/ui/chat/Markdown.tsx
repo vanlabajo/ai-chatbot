@@ -6,7 +6,6 @@ import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './CodeBlock';
 
 const components: Partial<Components> = {
-  // @ts-expect-error CodeBlock does not conform to the expected type for the `code` property in `ReactMarkdown`'s `Components` type.
   code: CodeBlock as Components['code'],
   pre: ({ children }) => <>{children}</>,
   ol: ({ node, children, ...props }) => {

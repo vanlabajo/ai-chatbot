@@ -1,10 +1,9 @@
 "use client";
 
-import { ReactMarkdownProps } from 'react-markdown';
 import React from 'react';
 
 interface CodeBlockProps {
-  node: ReactMarkdownProps['node'];
+  node: any;
   inline: boolean;
   className: string;
   children: React.ReactNode;
@@ -17,7 +16,8 @@ export function CodeBlock({
   children,
   ...props
 }: CodeBlockProps) {
-  if (!inline) {
+  const match = /language-(\w+)/.exec(className || "");
+  if (!inline && match) {
     return (
       <div className="not-prose flex flex-col">
         <pre

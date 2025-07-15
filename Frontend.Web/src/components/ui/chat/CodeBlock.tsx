@@ -1,12 +1,13 @@
 "use client";
 
 import { ReactMarkdownProps } from 'react-markdown';
+import React from 'react';
 
 interface CodeBlockProps {
   node: ReactMarkdownProps['node'];
   inline: boolean;
   className: string;
-  children: any;
+  children: React.ReactNode;
 }
 
 export function CodeBlock({

@@ -1,5 +1,5 @@
 # Base image
-FROM node:24 AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 
 # Build stage
@@ -12,8 +12,6 @@ ARG NEXT_PUBLIC_REDIRECT_URI
 ARG NEXT_PUBLIC_SCOPE
 ARG NEXT_PUBLIC_API_ENDPOINT
 ARG NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING
-
-ENV NODE_OPTIONS=--max-old-space-size=4096
 
 RUN echo "NEXT_PUBLIC_CLIENT_ID=$NEXT_PUBLIC_CLIENT_ID" >> .env.production && \
   echo "NEXT_PUBLIC_TENANT_ID=$NEXT_PUBLIC_TENANT_ID" >> .env.production && \
@@ -33,7 +31,6 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Install only production dependencies
 COPY package.json pnpm-lock.yaml* ./

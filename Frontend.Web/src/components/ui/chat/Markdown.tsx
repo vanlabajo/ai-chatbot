@@ -39,7 +39,7 @@ const components: Partial<Components> = {
   },
   a: ({ node, children, ...props }) => {
     return (
-      // @ts-expect-error
+      // @ts-expect-error: The `Link` component from `next/link` does not include `target` and `rel` in its type definitions, but these props are valid and necessary for external links.
       <Link
         className="text-blue-500 hover:underline"
         target="_blank"

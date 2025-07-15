@@ -31,6 +31,7 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Install only production dependencies
 COPY package.json pnpm-lock.yaml* ./

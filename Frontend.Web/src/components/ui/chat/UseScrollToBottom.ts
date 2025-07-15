@@ -21,7 +21,7 @@ export function UseScrollToBottom<T extends HTMLElement>(): [
     if (!container || !end) return;
 
     const observer = new MutationObserver(() => {
-      end.scrollIntoView({ behavior: "instant", block: "end" });
+      end.scrollIntoView({ behavior: "auto", block: "end" });
     });
     observer.observe(container, {
       childList: true,

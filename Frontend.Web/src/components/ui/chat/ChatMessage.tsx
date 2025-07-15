@@ -8,12 +8,10 @@ import { TypewriterMarkdown } from './TypewriterMarkdown';
 
 export const PreviewChatMessage = ({
   message,
-  activateTypewritingEffect = false,
-  onTypewriterFinished
+  activateTypewritingEffect = false
 }: {
   message: ChatMessage;
   activateTypewritingEffect?: boolean;
-  onTypewriterFinished?: () => void;
 }) => {
   if (message.role !== 'assistant' && message.role !== 'user') return;
 
@@ -43,10 +41,9 @@ export const PreviewChatMessage = ({
                 <TypewriterMarkdown
                   text={message.content}
                   isActive={activateTypewritingEffect}
-                  onTypingFinished={onTypewriterFinished}
                 />
               ) : (
-                <Markdown>{message.content}</Markdown>
+                <Markdown className="text-white dark:text-gray-200">{message.content}</Markdown>
               )}
             </div>
           )}

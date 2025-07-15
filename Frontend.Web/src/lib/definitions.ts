@@ -3,6 +3,7 @@ export type ChatMessage = {
   content: string;
   role: string;
   timestamp: string;
+  shouldTypewrite?: boolean; // optional
 }
 
 export const HubEventNames = {

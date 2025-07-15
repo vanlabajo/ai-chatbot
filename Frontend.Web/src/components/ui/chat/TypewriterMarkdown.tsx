@@ -7,12 +7,10 @@ type TypingMode = "char" | "word";
 export const TypewriterMarkdown = ({
   text,
   isActive,
-  onTypingFinished,
   typingMode = "word"
 }: {
   text: string;
   isActive: boolean;
-  onTypingFinished?: () => void;
   typingMode?: TypingMode;
 }) => {
   const [visibleText, setVisibleText] = useState("");
@@ -48,8 +46,7 @@ export const TypewriterMarkdown = ({
     setVisibleText(text);
     setIsTyping(false);
     prevTextRef.current = text;
-    onTypingFinished?.();
-  }, [text, onTypingFinished]);
+  }, [text]);
 
   useEffect(() => {
     if (!isActive) {
@@ -66,7 +63,6 @@ export const TypewriterMarkdown = ({
         setIsTyping(false);
         setVisibleText(text); // Make sure full text is visible
         prevTextRef.current = text;
-        onTypingFinished?.();
         return;
       }
       const nextUnit = newUnits.shift()!;
@@ -76,8 +72,8 @@ export const TypewriterMarkdown = ({
 
       // Delay settings
       const trimmed = nextUnit.trim();
-      const baseDelay = typingMode === "word" ? 30 : 40;
-      let delay = Math.random() * 50 + baseDelay;
+      const baseDelay = typingMode === "word" ? 15 : 20;
+      let delay = Math.random() * 25 + baseDelay;
       if (/[.,!?]$/.test(trimmed)) {
         delay += 150;
       }
@@ -89,7 +85,7 @@ export const TypewriterMarkdown = ({
     return () => {
       if (timeoutId.current) clearTimeout(timeoutId.current);
     };
-  }, [text, isActive, typingMode, onTypingFinished, resetTyping]);
+  }, [text, isActive, typingMode, resetTyping]);
 
   return (
     <motion.div

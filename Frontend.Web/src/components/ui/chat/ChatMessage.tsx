@@ -12,7 +12,6 @@ export const PreviewChatMessage = ({
 }: {
   message: ChatMessage;
   activateTypewritingEffect?: boolean;
-  onMessageRendered?: () => void;
 }) => {
   if (message.role !== 'assistant' && message.role !== 'user') return;
 

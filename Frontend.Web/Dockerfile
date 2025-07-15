@@ -21,7 +21,7 @@ RUN echo "NEXT_PUBLIC_CLIENT_ID=$NEXT_PUBLIC_CLIENT_ID" >> .env.production && \
   echo "NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=$NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING" >> .env.production
 
 COPY package.json pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install
+RUN npm install -g pnpm@10.10.0 && pnpm install
 
 COPY . .
 RUN pnpm build
@@ -34,7 +34,7 @@ ENV NODE_ENV=production
 
 # Install only production dependencies
 COPY package.json pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install --prod
+RUN npm install -g pnpm@10.10.0 && pnpm install --prod
 
 # Copy built output and public assets
 COPY --from=builder /app/.next ./.next

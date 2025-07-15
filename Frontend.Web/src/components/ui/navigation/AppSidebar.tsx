@@ -274,7 +274,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
                       <SidebarLink
                         href={`#${session.id}`}
                         isActive={session.id === activeSessionId}
-                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900 dark:data-[active=true]:bg-gray-800 dark:data-[active=true]:text-gray-50"
                         title={session.title ?? ""}
                         onClick={() => handleClick(session.id)}
                       >

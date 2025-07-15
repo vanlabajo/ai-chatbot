@@ -44,7 +44,7 @@ export const PreviewChatMessage = ({
                   isActive={activateTypewritingEffect}
                 />
               ) : (
-                <Markdown>{message.content}</Markdown>
+                <Markdown className="text-white dark:text-gray-200">{message.content}</Markdown>
               )}
             </div>
           )}

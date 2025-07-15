@@ -1,7 +1,9 @@
 "use client";
 
+import { ReactMarkdownProps } from 'react-markdown';
+
 interface CodeBlockProps {
-  node: any;
+  node: ReactMarkdownProps['node'];
   inline: boolean;
   className: string;
   children: any;

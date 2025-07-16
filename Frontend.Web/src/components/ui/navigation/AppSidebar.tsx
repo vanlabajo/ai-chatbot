@@ -13,7 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/Sidebar";
-import { getSessions } from "@/lib/api";
+import { deleteSession, getSessions, updateSessionTitle } from "@/lib/api";
 import { ChatSession, HubEventNames } from "@/lib/definitions";
 import { isAdmin } from "@/lib/msal";
 import { getConnection } from "@/lib/signalr";
@@ -25,6 +25,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { ComponentProps, useCallback, useEffect, useRef, useState } from "react";
 import { useChatLoading } from "../chat/ChatLoadingContext";
 import { LoadingStatus } from "./LoadingStatus";
+import { SidebarLinkActions } from "./SidebarLinkActions";
 import { UserProfile } from "./UserProfile";
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
@@ -37,10 +38,13 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [hubConnection, setHubConnection] = useState<HubConnection | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const isInitializedRef = useRef(false);
   const sessionUpdateHandlerRef = useRef<((session: ChatSession) => void) | null>(null);
   const sessionDeleteHandlerRef = useRef<((sessionId: string) => void) | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const cleanupSessionUpdateHandler = useCallback(() => {
     if (sessionUpdateHandlerRef.current && hubConnection) {
@@ -147,6 +151,33 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
     setSearchTerm(e.target.value);
   };
 
+  const handleEdit = (session: ChatSession) => {
+    setTimeout(() => {
+      setEditingSessionId(session.id);
+      setEditValue(session.title ?? "");
+    }, 200);
+  };
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value);
+  };
+
+  const handleEditSave = async (session: ChatSession) => {
+    await updateSessionTitle(session.id, editValue);
+    setEditingSessionId(null);
+  };
+
+  useEffect(() => {
+    if (editingSessionId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingSessionId]);
+
+  const handleDelete = async (sessionId: string) => {
+    await deleteSession(sessionId);
+  };
+
   const groupSessionsByDay = (sessions: ChatSession[]) => {
     const groups: Record<string, ChatSession[]> = {};
     const now = new Date();
@@ -230,7 +261,7 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
                       <SidebarLink
                         href="/admin"
                         isActive={pathname === "/admin"}
-                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900"
+                        className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900 dark:data-[active=true]:bg-gray-800 dark:data-[active=true]:text-gray-50"
                         icon={Shield}
                       >
                         Admin Dashboard
@@ -277,9 +308,30 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
                         className="flex items-center w-full data-[active=true]:bg-gray-300/50 data-[active=true]:text-gray-900 dark:data-[active=true]:bg-gray-800 dark:data-[active=true]:text-gray-50"
                         title={session.title ?? ""}
                         onClick={() => handleClick(session.id)}
+                        actions={
+                          <SidebarLinkActions
+                            subject={session.title ?? session.id}
+                            edit={() => handleEdit(session)}
+                            delete={() => handleDelete(session.id)} />
+                        }
                       >
                         <span className="flex w-full items-center justify-between">
-                          <span className="truncate max-w-[12rem] block">{session.title}</span>
+                          {editingSessionId === session.id ? (
+                            <input
+                              ref={editInputRef}
+                              className="truncate max-w-[12rem] block bg-transparent outline-0"
+                              value={editValue}
+                              autoFocus
+                              onChange={handleEditChange}
+                              onBlur={() => handleEditSave(session)}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") handleEditSave(session);
+                                if (e.key === "Escape") setEditingSessionId(null);
+                              }}
+                            />
+                          ) : (
+                            <span className="truncate max-w-[12rem] block">{session.title}</span>
+                          )}
                           {!session.title && <LoadingStatus className="size-4" />}
                         </span>
                       </SidebarLink>

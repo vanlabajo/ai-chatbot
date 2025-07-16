@@ -282,8 +282,9 @@ const SidebarLink = React.forwardRef<
     icon?: React.ElementType
     isActive?: boolean
     notifications?: number | boolean
+    actions?: React.ReactNode
   }
->(({ children, isActive, icon, notifications, className, ...props }, ref) => {
+>(({ children, isActive, icon, notifications, actions, className, ...props }, ref) => {
   const Icon = icon
   return (
     <a
@@ -291,6 +292,7 @@ const SidebarLink = React.forwardRef<
       aria-current={isActive ? "page" : undefined}
       data-active={isActive}
       className={cx(
+        "group/sidebar-link",
         "flex items-center justify-between rounded-md p-2 text-base transition hover:bg-gray-200/50 sm:text-sm hover:dark:bg-gray-900",
         "text-gray-900 dark:text-gray-400 hover:dark:text-gray-50",
         "data-[active=true]:text-blue-600 data-[active=true]:dark:text-blue-500",
@@ -299,13 +301,24 @@ const SidebarLink = React.forwardRef<
       )}
       {...props}
     >
-      <span className="flex items-center gap-x-2.5">
+      <span className="flex items-center gap-x-2.5 flex-1 min-w-0">
         {Icon && <Icon className="size-[18px] shrink-0" aria-hidden="true" />}
         {children}
       </span>
-      {notifications && (
-        <span className="inline-flex size-5 items-center justify-center rounded bg-blue-100 text-sm font-medium text-blue-600 sm:text-xs dark:bg-blue-500/10 dark:text-blue-500">
-          {notifications}
+      {(actions || notifications) && (
+        <span className="relative flex-shrink-0 ml-2" style={{ width: 32, height: 32, display: "inline-block" }}>
+          {/* Actions */}
+          {actions && (
+            <span className="absolute inset-0 flex items-center justify-center opacity-0 pointer-events-none group-hover/sidebar-link:opacity-100 group-hover/sidebar-link:pointer-events-auto transition-opacity">
+              {actions}
+            </span>
+          )}
+          {/* Notifications */}
+          {notifications && (
+            <span className="absolute inset-0 flex items-center justify-center opacity-100 group-hover/sidebar-link:opacity-0 pointer-events-auto group-hover/sidebar-link:pointer-events-none transition-opacity rounded bg-blue-100 text-sm font-medium text-blue-600 sm:text-xs dark:bg-blue-500/10 dark:text-blue-500">
+              {notifications}
+            </span>
+          )}
         </span>
       )}
     </a>

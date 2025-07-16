@@ -1,9 +1,11 @@
-﻿using Backend.Core;
+﻿using Backend.Api.Hubs;
+using Backend.Core;
 using Backend.Core.DTOs;
 using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Identity.Web;
 using System.Text;
 
@@ -12,11 +14,12 @@ namespace Backend.Api.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ChatController(IOpenAIService openAiService, ICacheService cacheService, IChatSessionService chatSessionService) : ControllerBase
+    public class ChatController(IOpenAIService openAiService, ICacheService cacheService, IChatSessionService chatSessionService, IHubContext<ChatHub> hubContext) : ControllerBase
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
         private readonly IChatSessionService _chatSessionService = chatSessionService;
+        private readonly IHubContext<ChatHub> _hubContext = hubContext;
         private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         [HttpPost]
@@ -107,6 +110,31 @@ namespace Backend.Api.Controllers
             await _chatSessionService.DeleteSessionAsync(user, sessionId, cancellationToken);
             sessions.Remove(session);
             await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
+            await _hubContext.Clients.All.SendAsync(HubEventNames.SessionDelete, sessionId, cancellationToken);
+            return NoContent();
+        }
+
+        [HttpPut("sessions/{sessionId}/title")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateSessionTitle(string sessionId, [FromBody] string newTitle, CancellationToken cancellationToken)
+        {
+            var user = User.GetNameIdentifierId();
+            if (user == null)
+                return BadRequest("User identity is not available.");
+            if (string.IsNullOrWhiteSpace(sessionId))
+                return BadRequest("Session ID cannot be empty.");
+            if (string.IsNullOrWhiteSpace(newTitle))
+                return BadRequest("New title cannot be empty.");
+            var sessions = await GetOrCreateSessions(user, cancellationToken);
+            var session = sessions.FirstOrDefault(s => s.Id == sessionId);
+            if (session == null)
+                return NotFound("Session not found.");
+            session.Title = newTitle;
+            await _chatSessionService.SaveSessionAsync(session, cancellationToken);
+            await _cacheService.SetAsync($"session-{user}", sessions, cancellationToken: cancellationToken);
+            await _hubContext.Clients.All.SendAsync(HubEventNames.SessionUpdate, session, cancellationToken);
             return NoContent();
         }
 

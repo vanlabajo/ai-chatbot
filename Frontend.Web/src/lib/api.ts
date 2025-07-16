@@ -53,3 +53,38 @@ export async function deleteSessionForAdmin(userId: string, sessionId: string): 
     throw new Error(`Failed to delete session: ${res.statusText}`);
   }
 }
+
+export async function updateSessionTitle(sessionId: string, newTitle: string): Promise<void> {
+  const endpoint = `${process.env.NEXT_PUBLIC_API_ENDPOINT}/api/chat/sessions/${sessionId}/title`;
+  const token = await getToken();
+
+  const res = await fetch(endpoint, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(newTitle),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to update session title: ${res.statusText}`);
+  }
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const endpoint = `${process.env.NEXT_PUBLIC_API_ENDPOINT}/api/chat/sessions/${sessionId}`;
+  const token = await getToken();
+
+  const res = await fetch(endpoint, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete session: ${res.statusText}`);
+  }
+}

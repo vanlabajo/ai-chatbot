@@ -32,6 +32,7 @@ builder.Services
     .AddMemoryCache()
     .Configure<AzureOpenAIOptions>(builder.Configuration.GetSection(AzureOpenAIOptions.AzureOpenAI))
     .Configure<AzureCosmosDbOptions>(builder.Configuration.GetSection(AzureCosmosDbOptions.CosmosDb))
+    .Configure<SystemPromptOptions>(builder.Configuration)
     .AddScoped<ICacheService, InMemoryCacheService>()
     .AddScoped<IOpenAIService, OpenAIService>()
     .AddScoped<ITokenizerService, TokenizerService>()

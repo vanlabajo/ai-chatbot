@@ -3,6 +3,7 @@ using Backend.Core;
 using Backend.Core.Exceptions;
 using Backend.Core.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Security.Claims;
 
@@ -18,7 +19,8 @@ namespace Backend.Test.UnitTests.Hubs
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
             var chatSessionServiceMock = new Mock<IChatSessionService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -48,7 +50,8 @@ namespace Backend.Test.UnitTests.Hubs
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
             var chatSessionServiceMock = new Mock<IChatSessionService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -123,7 +126,8 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(s => s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = clientsMock.Object
@@ -201,7 +205,15 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(s => s.SaveSessionAsync(It.IsAny<ChatSession>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2", "System prompt 3", "System prompt 4", "System prompt 5"]
+                });
+
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = clientsMock.Object
@@ -232,7 +244,8 @@ namespace Backend.Test.UnitTests.Hubs
             var openAiServiceMock = new Mock<IOpenAIService>();
             var cacheServiceMock = new Mock<ICacheService>();
             var chatSessionServiceMock = new Mock<IChatSessionService>();
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = Mock.Of<IHubCallerClients>(c =>
@@ -291,7 +304,8 @@ namespace Backend.Test.UnitTests.Hubs
                 .Setup(s => s.GetAllSessionsForUserAsync("user-123", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(sessions);
 
-            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var chatHub = new ChatHub(openAiServiceMock.Object, cacheServiceMock.Object, chatSessionServiceMock.Object, promptOptionsMock.Object)
             {
                 Context = contextMock.Object,
                 Clients = clientsMock.Object

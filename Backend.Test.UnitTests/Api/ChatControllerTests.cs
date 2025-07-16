@@ -6,6 +6,7 @@ using Backend.Core.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Security.Claims;
 
@@ -21,7 +22,8 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object);
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object);
             var request = new ChatRequest { Message = null };
             // Act
             var result = await controller.Chat(request, default);
@@ -37,8 +39,15 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2"]
+                });
 
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -54,7 +63,7 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -88,7 +97,8 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -110,8 +120,15 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2"]
+                });
 
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -127,7 +144,7 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -161,8 +178,15 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2"]
+                });
 
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -178,7 +202,7 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -212,6 +236,7 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
 
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
 
@@ -224,12 +249,18 @@ namespace Backend.Test.UnitTests.Api
 
             openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
                 .Returns(GetTestValues);
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2", "System prompt 3", "System prompt 4", "System prompt 5"]
+                });
 
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -279,6 +310,7 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -292,7 +324,7 @@ namespace Backend.Test.UnitTests.Api
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -345,6 +377,7 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             openAiService.Setup(x => x.GetChatResponseAsync(It.IsAny<IEnumerable<ChatMessage>>())).ReturnsAsync("Hello, World!");
             static async IAsyncEnumerable<string> GetTestValues()
             {
@@ -354,11 +387,17 @@ namespace Backend.Test.UnitTests.Api
             }
             openAiService.Setup(x => x.GetChatResponseStreamingAsync(It.IsAny<IEnumerable<ChatMessage>>()))
                 .Returns(GetTestValues);
+            promptOptionsMock
+                .Setup(p => p.Value)
+                .Returns(new SystemPromptOptions
+                {
+                    SystemPrompts = ["System prompt 1", "System prompt 2"]
+                });
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -400,11 +439,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -443,11 +483,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -476,7 +517,8 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -498,11 +540,12 @@ namespace Backend.Test.UnitTests.Api
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
             var clientProxy = new Mock<IClientProxy>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -546,11 +589,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -576,7 +620,8 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -598,11 +643,12 @@ namespace Backend.Test.UnitTests.Api
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
             var clientProxy = new Mock<IClientProxy>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -650,11 +696,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -680,7 +727,8 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -701,11 +749,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -726,11 +775,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {
@@ -751,11 +801,12 @@ namespace Backend.Test.UnitTests.Api
             var cacheService = new Mock<ICacheService>();
             var chatSessionService = new Mock<IChatSessionService>();
             var hubContext = new Mock<IHubContext<ChatHub>>();
+            var promptOptionsMock = new Mock<IOptions<SystemPromptOptions>>();
             var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, "testuser"),
             ], "mock"));
-            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object)
+            var controller = new ChatController(openAiService.Object, cacheService.Object, chatSessionService.Object, hubContext.Object, promptOptionsMock.Object)
             {
                 ControllerContext = new ControllerContext
                 {

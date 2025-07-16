@@ -6,6 +6,7 @@ using Backend.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using System.Text;
 
@@ -14,12 +15,18 @@ namespace Backend.Api.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ChatController(IOpenAIService openAiService, ICacheService cacheService, IChatSessionService chatSessionService, IHubContext<ChatHub> hubContext) : ControllerBase
+    public class ChatController(
+        IOpenAIService openAiService,
+        ICacheService cacheService,
+        IChatSessionService chatSessionService,
+        IHubContext<ChatHub> hubContext,
+        IOptions<SystemPromptOptions> promptOptions) : ControllerBase
     {
         private readonly IOpenAIService _openAiService = openAiService;
         private readonly ICacheService _cacheService = cacheService;
         private readonly IChatSessionService _chatSessionService = chatSessionService;
         private readonly IHubContext<ChatHub> _hubContext = hubContext;
+        private readonly SystemPromptOptions _promptOptions = promptOptions.Value;
         private const string RateLimitMessage = "You have exceeded the rate limit for requests. Please try again later.";
 
         [HttpPost]
@@ -150,7 +157,7 @@ namespace Backend.Api.Controllers
             return sessions;
         }
 
-        private static ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)
+        private ChatSession GetOrCreateSession(List<ChatSession> sessions, string user, string? sessionId)
         {
             var session = !string.IsNullOrEmpty(sessionId)
                 ? sessions.FirstOrDefault(s => s.Id == sessionId)
@@ -162,14 +169,7 @@ namespace Backend.Api.Controllers
                 {
                     UserId = user,
                     Id = sessionId ?? Guid.NewGuid().ToString(),
-                    Messages =
-                    [
-                        new() { Role = ChatRole.System, Content = "You are a helpful assistant, providing informative and concise answers to user queries. Your goal is to be informative, respectful, and helpful." },
-                        new() { Role = ChatRole.System, Content = "You are trained to be a conversational AI assistant." },
-                        new() { Role = ChatRole.System, Content = "You are available to answer questions on a wide range of topics, but you are not a medical professional, financial advisor, or lawyer." },
-                        new() { Role = ChatRole.System, Content = "You will answer questions in a way that is easy to understand, avoiding technical jargon unless necessary." },
-                        new() { Role = ChatRole.System, Content = "If you are asked to perform actions (e.g., make a booking), you will advise the user on how to do so, but you will not perform the action yourself." }
-                    ]
+                    Messages = [.. _promptOptions.SystemPrompts.Select(p => new ChatMessage { Role = ChatRole.System, Content = p })]
                 };
                 sessions.Add(session);
             }

@@ -15,7 +15,7 @@ resource "azurerm_linux_web_app" "chatbot_api" {
   site_config {
     always_on = true
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "9.0"
     }
   }
 

@@ -96,9 +96,7 @@ export default async function RootLayout({
                       <div className="mr-2 h-4 w-px bg-gray-200 dark:bg-gray-800" />
                       <Breadcrumbs />
                     </header>
-                    <MsalWrapper>
-                      <main>{children}</main>
-                    </MsalWrapper>
+                    <main>{children}</main>
                   </div>
                 </SidebarProvider>
               </ChatLoadingProvider>
